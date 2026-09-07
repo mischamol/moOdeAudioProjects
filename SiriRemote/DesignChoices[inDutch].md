@@ -51,7 +51,7 @@ bluetoothctl trust 70:48:0F:F2:65:99
 | `00 02` | Volume + | `set_volume -up 5` |
 | `00 04` | Volume - | `set_volume -dn 5` |
 | `00 08` | Play/Pause | `toggle_play_pause` |
-| `00 10` | Microfoon/Siri | genegeerd |
+| `00 10` | Microfoon/Siri | toon de gecachete batterijstand één seconde |
 | `00 20` | Menu/Back | wissel Playback en de laatste Library-view |
 | touchpad links + fysieke click | Vorige nummer | `previous` |
 | touchpad rechts + fysieke click | Volgende nummer | `next` |
@@ -112,10 +112,17 @@ moOde-bestanden toegevoegd.
 De Home/TV-knop voert bij kort indrukken niets uit. Alleen onafgebroken drie
 seconden vasthouden voert `/usr/bin/systemctl poweroff` uit. De knopcode en duur zijn instelbaar met
 `SIRI_HOME_BUTTON_MASK` en `SIRI_HOME_HOLD_SECONDS`.
-De Microfoon/Siri-knop wordt volledig genegeerd, omdat die op deze generatie ook
-Apples voice/audio-pad activeert en daarmee de raw ATT-verbinding kan resetten.
-Er is bewust geen handmatige batterijopvraag aan een knop gekoppeld. De
-automatische controle en waarschuwingen bij een laag percentage blijven actief.
+De Microfoon/Siri-knop toont de laatst uitgelezen batterijstand één seconde. De
+knophandler start nadrukkelijk geen nieuwe ATT-read: hij gebruikt de waarde van
+de initiële of periodieke read uit de bestaande ATT-eventloop. Zo kan een
+knopmelding niet recursief een ATT-antwoord consumeren en de verbinding
+blokkeren of desynchroniseren.
+
+Als de remote volledig slaapt, kan de eerste fysieke druk uitsluitend dienen om
+hem te laten adverteren. Linux ontvangt dan geen `00 10`-rapport en userspace kan
+niet weten welke knop de wake-up veroorzaakte. Dankzij de begrensde reconnect en
+de supervisietijd van 2000 ms blijven de volgende knoppen wel reageren; na het
+verbinden toont een volgende druk op Microfoon/Siri de batterijstand.
 
 ## Schermoverlay
 
@@ -257,6 +264,12 @@ BlueZ-configuratie niet.
   verbonden gebruikt de daemon een blokkerende socket met expliciete
   `select()`-polling; dit voorkomt de CPU-spin die Python socket-time-outs op
   sommige recente kernels geven.
+- Een HCI-capture toonde dat de kernel een LE supervision-time-out van slechts
+  420 ms gebruikte. Encryptie na een reconnect duurde soms langer en werd dan
+  met HCI-status `Connection Timeout (0x08)` afgebroken. De daemon laadt daarom
+  bij het starten via de officiële Linux Bluetooth Management API 2000 ms voor
+  uitsluitend deze remote. Dit is een instelling in het controllergeheugen;
+  er wordt geen kernel-, BlueZ- of moOde-bestand aangepast.
 - Deze remote gebruikt aantoonbaar MTU 23. Batterij-keepalive is uitgeschakeld,
   omdat dit de verbinding niet betrouwbaarder maakte. Bij een bezette CID 4 vraagt de daemon BlueZ
   automatisch de verbinding los te laten voordat hij opnieuw probeert.

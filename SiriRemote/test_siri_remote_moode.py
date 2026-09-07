@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sqlite3
+import struct
 import tempfile
 import unittest
 from unittest import mock
@@ -200,17 +201,28 @@ class ButtonMapperTests(unittest.TestCase):
         self.assertIn("shutdown", overlay.cancellations)
         mapper.reset()
 
-    def test_microphone_button_is_completely_ignored(self):
+    def test_microphone_button_shows_cached_battery_once_per_press(self):
+        battery_requests = []
         mapper = remote.ButtonMapper(
             self.worker,
             shutdown_action=lambda: None,
+            battery_display_action=lambda: battery_requests.append(True),
+        )
+        mapper.notification(
+            remote.HANDLE_INPUT_VALUE,
+            bytes((0, remote.BUTTON_SIRI)),
         )
         mapper.notification(
             remote.HANDLE_INPUT_VALUE,
             bytes((0, remote.BUTTON_SIRI)),
         )
         mapper.notification(remote.HANDLE_INPUT_VALUE, bytes((0, 0)))
+        mapper.notification(
+            remote.HANDLE_INPUT_VALUE,
+            bytes((0, remote.BUTTON_SIRI)),
+        )
         self.assertEqual(self.worker.actions, [])
+        self.assertEqual(battery_requests, [True, True])
         mapper.reset()
 
 
@@ -512,6 +524,27 @@ class OverlayWorkerTests(unittest.TestCase):
         )
 
 class BatteryMonitorTests(unittest.TestCase):
+    def test_manual_show_uses_cached_level_for_one_second(self):
+        overlay = FakeOverlayWorker()
+        monitor = remote.BatteryMonitor(overlay, threshold=10)
+        monitor.update(76)
+        monitor.show_current()
+        self.assertEqual(
+            overlay.submissions,
+            [("BATTERY:76%", 1.0, "battery-manual")],
+        )
+
+    def test_early_manual_show_waits_for_initial_reading(self):
+        overlay = FakeOverlayWorker()
+        monitor = remote.BatteryMonitor(overlay, threshold=10)
+        monitor.show_current()
+        self.assertEqual(overlay.submissions, [])
+        monitor.update(76)
+        self.assertEqual(
+            overlay.submissions,
+            [("BATTERY:76%", 1.0, "battery-manual")],
+        )
+
     def test_five_to_nine_shows_one_second_warning(self):
         overlay = FakeOverlayWorker()
         monitor = remote.BatteryMonitor(
@@ -562,6 +595,17 @@ class BatteryMonitorTests(unittest.TestCase):
         self.assertEqual(overlay.sequences, [])
 
 class RawAttClientTests(unittest.TestCase):
+    def test_mgmt_connection_parameters_target_only_the_siri_remote(self):
+        payload = remote.mgmt_connection_parameter_payload(
+            "70:48:0F:F2:65:99",
+            remote.BDADDR_LE_PUBLIC,
+            200,
+        )
+        values = struct.unpack("<H6sBHHHH", payload)
+        self.assertEqual(values[0], 1)
+        self.assertEqual(values[1], bytes.fromhex("9965f20f4870"))
+        self.assertEqual(values[2:], (1, 24, 40, 0, 200))
+
     def test_battery_interval_tracks_latest_att_reading(self):
         client = remote.RawAttClient(
             "70:48:0F:F2:65:99", "public", "medium",

@@ -31,10 +31,10 @@ grep -q '^SIRI_TOUCH_MAX_AGE_SECONDS=' /etc/default/siri-remote-moode || printf 
 grep -q '^SIRI_HOME_BUTTON_MASK=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_HOME_BUTTON_MASK=0x01' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_HOME_HOLD_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_HOME_HOLD_SECONDS=3' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_HOME_COMMAND=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_HOME_COMMAND=/usr/bin/systemctl poweroff' >> /etc/default/siri-remote-moode
-# Manual battery display and the Microphone/Siri button are intentionally unused.
-# Remove obsolete settings from installations that previously mapped either
-# Microphone/Siri or a long Menu press to battery display.
-sed -i '/^SIRI_MENU_HOLD_SECONDS=/d; /^SIRI_MIC_BUTTON_MASK=/d; /^SIRI_MIC_HOLD_SECONDS=/d; /^MOODE_SIRI_CMD=/d' /etc/default/siri-remote-moode
+# A short Microphone/Siri press shows the last battery level read by the ATT
+# event loop. Remove obsolete hold/command mappings but retain the button mask.
+sed -i '/^SIRI_MENU_HOLD_SECONDS=/d; /^SIRI_MIC_HOLD_SECONDS=/d; /^MOODE_SIRI_CMD=/d' /etc/default/siri-remote-moode
+grep -q '^SIRI_MIC_BUTTON_MASK=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_MIC_BUTTON_MASK=0x10' >> /etc/default/siri-remote-moode
 # Local display click for Menu/Back. Determine the uid 1000 home directory so
 # the package does not assume a specific moOde account name.
 display_home=$(getent passwd 1000 | cut -d: -f6)
@@ -51,6 +51,7 @@ sed -i "s|^SIRI_XAUTHORITY=/home/[^/]*/.Xauthority$|SIRI_XAUTHORITY=$display_hom
 sed -i '/^SIRI_MENU_CLICK_X=/d; /^SIRI_MENU_CLICK_Y=/d' /etc/default/siri-remote-moode
 sed -i 's/^SIRI_ATT_MTU=104$/SIRI_ATT_MTU=23/' /etc/default/siri-remote-moode
 grep -q '^SIRI_ATT_MTU=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_ATT_MTU=23' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_LE_SUPERVISION_TIMEOUT_MS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_LE_SUPERVISION_TIMEOUT_MS=2000' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_CONNECT_TIMEOUT_SECONDS=2$/SIRI_CONNECT_TIMEOUT_SECONDS=4/' /etc/default/siri-remote-moode
 grep -q '^SIRI_CONNECT_TIMEOUT_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_CONNECT_TIMEOUT_SECONDS=4' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_KEEPALIVE_SECONDS=.*/SIRI_KEEPALIVE_SECONDS=0/' /etc/default/siri-remote-moode

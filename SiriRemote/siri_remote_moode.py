@@ -99,11 +99,17 @@ class XImage(ctypes.Structure):
 AF_BLUETOOTH = 31
 SOCK_SEQPACKET = 5
 BTPROTO_L2CAP = 0
+BTPROTO_HCI = 1
 SOL_BLUETOOTH = 274
 BT_SECURITY = 4
 ATT_CID = 4
 BDADDR_LE_PUBLIC = 0x01
 BDADDR_LE_RANDOM = 0x02
+HCI_CHANNEL_CONTROL = 3
+HCI_DEV_NONE = 0xFFFF
+MGMT_EV_CMD_COMPLETE = 0x0001
+MGMT_EV_CMD_STATUS = 0x0002
+MGMT_OP_LOAD_CONN_PARAM = 0x0035
 
 ATT_OP_ERROR_RSP = 0x01
 ATT_OP_MTU_REQ = 0x02
@@ -159,6 +165,14 @@ class SockAddrL2(ctypes.Structure):
     ]
 
 
+class SockAddrHci(ctypes.Structure):
+    _fields_ = [
+        ("family", ctypes.c_ushort),
+        ("dev", ctypes.c_ushort),
+        ("channel", ctypes.c_ushort),
+    ]
+
+
 class BtSecurity(ctypes.Structure):
     _fields_ = [("level", ctypes.c_ubyte), ("key_size", ctypes.c_ubyte)]
 
@@ -198,6 +212,93 @@ def checked_call(libc: ctypes.CDLL, name: str, *args: object) -> int:
         error = ctypes.get_errno()
         raise OSError(error, os.strerror(error))
     return int(result)
+
+
+def mgmt_connection_parameter_payload(
+    mac: str,
+    address_type: int,
+    supervision_timeout_units: int,
+) -> bytes:
+    """Build one Linux MGMT Load Connection Parameters entry."""
+    return struct.pack(
+        "<H6sBHHHH",
+        1,
+        parse_mac(mac)[::-1],
+        address_type,
+        24,
+        40,
+        0,
+        supervision_timeout_units,
+    )
+
+
+def load_le_connection_parameters(
+    mac: str,
+    address_type: int,
+    supervision_timeout_units: int,
+    adapter_index: int = 0,
+    response_timeout: float = 2.0,
+) -> None:
+    """Load per-device LE defaults through Linux's official MGMT channel."""
+    libc = ctypes.CDLL(None, use_errno=True)
+    fd = checked_call(
+        libc, "socket", AF_BLUETOOTH, socket.SOCK_RAW, BTPROTO_HCI,
+    )
+    try:
+        control = SockAddrHci(
+            AF_BLUETOOTH, HCI_DEV_NONE, HCI_CHANNEL_CONTROL,
+        )
+        checked_call(
+            libc, "bind", fd, ctypes.byref(control), ctypes.sizeof(control),
+        )
+        payload = mgmt_connection_parameter_payload(
+            mac, address_type, supervision_timeout_units,
+        )
+        command = struct.pack(
+            "<HHH", MGMT_OP_LOAD_CONN_PARAM, adapter_index, len(payload),
+        ) + payload
+        if os.write(fd, command) != len(command):
+            raise OSError("short write to Bluetooth management socket")
+
+        deadline = time.monotonic() + response_timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise socket.timeout(
+                    "timed out loading LE connection parameters"
+                )
+            readable, _, exceptional = select.select(
+                [fd], [], [fd], remaining,
+            )
+            if exceptional:
+                raise ConnectionError(
+                    "Bluetooth management socket entered an exceptional state"
+                )
+            if not readable:
+                raise socket.timeout(
+                    "timed out loading LE connection parameters"
+                )
+            packet = os.read(fd, 1024)
+            if len(packet) < 6:
+                continue
+            event, _index, length = struct.unpack_from("<HHH", packet)
+            data = packet[6:6 + length]
+            if event == MGMT_EV_CMD_COMPLETE and len(data) >= 3:
+                opcode, status = struct.unpack_from("<HB", data)
+            elif event == MGMT_EV_CMD_STATUS and len(data) >= 3:
+                opcode, status = struct.unpack_from("<HB", data)
+            else:
+                continue
+            if opcode != MGMT_OP_LOAD_CONN_PARAM:
+                continue
+            if status:
+                raise OSError(
+                    f"Bluetooth MGMT Load Connection Parameters failed: "
+                    f"status 0x{status:02x}"
+                )
+            return
+    finally:
+        os.close(fd)
 
 
 class RawAttClient:
@@ -1785,6 +1886,7 @@ class BatteryMonitor:
         self.is_low = False
         self.is_critical = False
         self.last_level: int | None = None
+        self.pending_manual_show = False
 
     def update(self, level: int) -> bool:
         if not 0 <= level <= 100:
@@ -1823,7 +1925,25 @@ class BatteryMonitor:
         self.is_low = low
         self.is_critical = critical
         self.last_level = level
+        if self.pending_manual_show:
+            self.pending_manual_show = False
+            self.overlay_worker.submit(
+                f"BATTERY:{level}%", duration=1.0, kind="battery-manual",
+            )
         return low
+
+    def show_current(self) -> None:
+        """Show the cached level without starting ATT I/O in a notification."""
+        if self.last_level is None:
+            LOG.info("Battery button pressed; waiting for initial battery reading")
+            self.pending_manual_show = True
+            return
+        LOG.info("Battery button pressed; showing %d%%", self.last_level)
+        self.overlay_worker.submit(
+            f"BATTERY:{self.last_level}%",
+            duration=1.0,
+            kind="battery-manual",
+        )
 
 
 class ButtonMapper:
@@ -1833,10 +1953,12 @@ class ButtonMapper:
         shutdown_action=None,
         screen_clicker: X11ClickWorker | None = None,
         overlay_worker: OverlayWorker | None = None,
+        battery_display_action=None,
     ) -> None:
         self.worker = worker
         self.screen_clicker = screen_clicker
         self.overlay_worker = overlay_worker
+        self.battery_display_action = battery_display_action
         self.previous = 0
         self.lock = threading.Lock()
         self.last_touch_x: int | None = None
@@ -1870,6 +1992,11 @@ class ButtonMapper:
         self.shutdown_action = shutdown_action or self._run_shutdown
         self.home_timer: threading.Timer | None = None
         self.home_fired = False
+        self.mic_mask = int(env("SIRI_MIC_BUTTON_MASK", "0x10"), 0)
+        if self.mic_mask <= 0 or self.mic_mask > 0xFF:
+            raise ValueError("SIRI_MIC_BUTTON_MASK must be between 0x01 and 0xff")
+        if self.mic_mask == self.home_mask:
+            raise ValueError("SIRI_MIC_BUTTON_MASK must differ from the Home mask")
         self.mapping = {
             BUTTON_AIRPLAY: ("AirPlay", env("MOODE_AIRPLAY_CMD", "")),
             BUTTON_VOLUME_UP: ("Volume +", env("MOODE_VOLUME_UP_CMD", "set_volume -up 5")),
@@ -2007,6 +2134,12 @@ class ButtonMapper:
 
         if touch_action is not None:
             self.worker.submit(*touch_action)
+        if newly_pressed & self.mic_mask and self.battery_display_action is not None:
+            # Never perform an ATT read here. This callback runs while an input
+            # notification is being dispatched; nested ATT I/O can consume the
+            # wrong response or block the receive loop. The battery monitor
+            # displays the value already read after connect/periodically.
+            self.battery_display_action()
         if newly_pressed & BUTTON_MENU:
             if self.screen_clicker is not None:
                 self.screen_clicker.submit()
@@ -2084,10 +2217,33 @@ def run(args: argparse.Namespace) -> int:
         worker,
         screen_clicker=screen_clicker if screen_clicker.enabled else None,
         overlay_worker=overlay_worker if overlay_worker.enabled else None,
+        battery_display_action=battery_monitor.show_current,
     )
     overlay_worker.start()
     worker.start()
     screen_clicker.start()
+
+    if args.supervision_timeout_ms > 0:
+        try:
+            address_type = {
+                "public": BDADDR_LE_PUBLIC,
+                "random": BDADDR_LE_RANDOM,
+            }[args.address_type]
+            load_le_connection_parameters(
+                args.mac,
+                address_type,
+                args.supervision_timeout_ms // 10,
+            )
+            LOG.info(
+                "Loaded Siri Remote LE supervision timeout: %d ms",
+                args.supervision_timeout_ms,
+            )
+        except (ConnectionError, OSError) as exc:
+            LOG.warning(
+                "Could not load Siri Remote LE connection parameters; "
+                "using kernel defaults: %s",
+                exc,
+            )
 
     delay = args.reconnect_min
     try:
@@ -2169,6 +2325,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--http-timeout", type=float, default=float(env("MOODE_HTTP_TIMEOUT", "4")))
     parser.add_argument("--mtu", type=int, default=int(env("SIRI_ATT_MTU", "23")))
     parser.add_argument(
+        "--supervision-timeout-ms",
+        type=int,
+        default=int(env("SIRI_LE_SUPERVISION_TIMEOUT_MS", "2000")),
+        help=(
+            "per-device LE supervision timeout in milliseconds; "
+            "0 keeps the kernel default"
+        ),
+    )
+    parser.add_argument(
         "--connect-timeout",
         type=float,
         default=float(env("SIRI_CONNECT_TIMEOUT_SECONDS", "4")),
@@ -2227,6 +2392,13 @@ def parse_args() -> argparse.Namespace:
         parser.error("reconnect delays must satisfy 0 < min <= max")
     if not 23 <= args.mtu <= 517:
         parser.error("MTU must be between 23 and 517")
+    if args.supervision_timeout_ms != 0 and (
+        not 100 <= args.supervision_timeout_ms <= 32000
+        or args.supervision_timeout_ms % 10
+    ):
+        parser.error(
+            "supervision timeout must be 0 or a multiple of 10 from 100 to 32000 ms"
+        )
     if args.connect_timeout <= 0:
         parser.error("connect timeout must be greater than zero")
     if args.keepalive < 0:

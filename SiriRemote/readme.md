@@ -333,7 +333,7 @@ backoff between 0.2 and 1 second.
 | `00 02` | Volume Up | `set_volume -up 5` |
 | `00 04` | Volume Down | `set_volume -dn 5` |
 | `00 08` | Play/Pause | `toggle_play_pause` |
-| `00 10` | Microphone/Siri | Ignored |
+| `00 10` | Microphone/Siri | Show the cached battery percentage for one second |
 | `00 20` | Menu/Back | Alternate Playback and the last Library view |
 | Touchpad left + physical click | Previous track | `previous` |
 | Touchpad right + physical click | Next track | `next` |
@@ -379,6 +379,8 @@ center is aligned exactly with the cover-art center.
   second every five minutes.
 - At 0–4%, that fresh reading is repeated every minute and the white
   battery overlay flashes three times.
+- Microphone/Siri shows the most recently read battery percentage for one
+  second. This display does not start a Bluetooth read from the button handler.
 - Menu/Back deliberately has no overlay.
 
 Bluetooth input, HTTP commands, and drawing use separate workers. Drawing can
@@ -453,11 +455,18 @@ The Home button must remain pressed continuously for three seconds. Releasing
 it earlier cancels the shutdown and performs no other action. If another remote reports a different Home code,
 enable debug logging, observe its `Input notification`, and update the mask.
 
-The Microphone/Siri button is intentionally ignored. On this first-generation
-remote it also starts Apple's voice/audio path, which can reset the raw ATT
-connection because this userspace daemon implements HID input but not Apple's
-Siri audio protocol. There is deliberately no manual battery-display command on
-any button. Automatic low-battery monitoring and its warnings remain active.
+The Microphone/Siri button shows the most recently read battery percentage for
+one second. The value is cached by the initial and periodic reads performed in
+the single ATT event loop. The notification handler deliberately performs no
+nested ATT read, because consuming ATT traffic recursively from that handler
+can block or desynchronize the connection.
+
+If the remote is fully asleep, the first physical press can be consumed solely
+to make it advertise. In that case Linux receives no `00 10` input report and
+no userspace program can determine which button caused the wake-up. The new
+bounded reconnect and 2000 ms supervision timeout keep subsequent buttons
+responsive; press Microphone/Siri once more after the remote has connected to
+show the percentage.
 
 ## Troubleshooting
 
@@ -470,6 +479,14 @@ one second of reconnect backoff. This prevents a sleeping remote from trapping
 one kernel connect call for tens of seconds or longer. In two tested wake-up
 cycles, a sleeping remote connected, executed Volume+, and queued its overlay
 in approximately 1.36–2.55 seconds without requiring a second button press.
+
+On the tested Pi/kernel combination, HCI tracing showed that the kernel default
+LE supervision timeout was only 420 ms. A reconnect encryption exchange could
+take longer and was then aborted with HCI `Connection Timeout (0x08)`. At daemon
+startup, the Python process now uses Linux's official Bluetooth Management API
+to load a 2000 ms timeout for this remote only. This is an in-memory controller
+setting: no kernel, BlueZ, or moOde file is modified. Set
+`SIRI_LE_SUPERVISION_TIMEOUT_MS=0` to retain the kernel default.
 
 ### Device or resource busy
 
@@ -529,6 +546,9 @@ The tested remote uses ATT MTU 23. Battery keepalive is disabled because it did
 not improve connection reliability. When BlueZ wins the reconnect race and
 occupies fixed channel 4, the daemon asks
 `bluetoothctl` to disconnect that stale connection and retries automatically.
+Reconnect setup is bounded separately, while the established ATT socket stays
+blocking and CPU-efficient. The per-device supervision setting is loaded before
+the first connection and remains available to subsequent reconnects.
 
 The `0xAF` initialization was derived from
 [SiriRemote-Linux](https://github.com/Yanndroid/SiriRemote-Linux). That project
