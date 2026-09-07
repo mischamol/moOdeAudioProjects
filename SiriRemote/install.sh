@@ -28,6 +28,8 @@ grep -q '^MOODE_DB_PATH=' /etc/default/siri-remote-moode || printf '%s\n' 'MOODE
 grep -q '^SIRI_TOUCH_X_SPLIT=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_X_SPLIT=3096' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_TOUCH_DEAD_ZONE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_DEAD_ZONE=60' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_TOUCH_MAX_AGE_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_MAX_AGE_SECONDS=1.5' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_VOLUME_REPEAT_RECOVERY_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_VOLUME_REPEAT_RECOVERY_SECONDS=0.75' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS=2' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_HOME_BUTTON_MASK=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_HOME_BUTTON_MASK=0x01' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_HOME_HOLD_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_HOME_HOLD_SECONDS=3' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_HOME_COMMAND=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_HOME_COMMAND=/usr/bin/systemctl poweroff' >> /etc/default/siri-remote-moode

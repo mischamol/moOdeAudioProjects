@@ -134,6 +134,7 @@ BUTTON_PLAY_PAUSE = 0x08
 BUTTON_SIRI = 0x10
 BUTTON_MENU = 0x20
 BUTTON_TOUCHPAD = 0x80
+VOLUME_BUTTONS = (BUTTON_VOLUME_UP, BUTTON_VOLUME_DOWN)
 
 TOUCH_EVENT_MARKER = 0x32
 GEN1_TOUCH_X_MIN = 2278
@@ -1964,9 +1965,17 @@ class ButtonMapper:
         self.last_touch_x: int | None = None
         self.last_touch_time = 0.0
         self.touch_click_handled = False
+        self.last_volume_press_time = 0.0
         self.touch_x_split = int(env("SIRI_TOUCH_X_SPLIT", str(GEN1_TOUCH_X_MID)), 0)
         self.touch_dead_zone = int(env("SIRI_TOUCH_DEAD_ZONE", "60"), 0)
         self.touch_max_age = float(env("SIRI_TOUCH_MAX_AGE_SECONDS", "1.5"))
+        self.volume_repeat_recovery = float(
+            env("SIRI_VOLUME_REPEAT_RECOVERY_SECONDS", "0.75")
+        )
+        self.reconnect_duplicate_guard = float(
+            env("SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS", "2")
+        )
+        self.reconnect_duplicate_guard_until = 0.0
         if not GEN1_TOUCH_X_MIN <= self.touch_x_split <= GEN1_TOUCH_X_MAX:
             raise ValueError(
                 f"SIRI_TOUCH_X_SPLIT must be between {GEN1_TOUCH_X_MIN} "
@@ -1976,6 +1985,14 @@ class ButtonMapper:
             raise ValueError("SIRI_TOUCH_DEAD_ZONE cannot be negative")
         if self.touch_max_age <= 0:
             raise ValueError("SIRI_TOUCH_MAX_AGE_SECONDS must be greater than zero")
+        if self.volume_repeat_recovery <= 0:
+            raise ValueError(
+                "SIRI_VOLUME_REPEAT_RECOVERY_SECONDS must be greater than zero"
+            )
+        if self.reconnect_duplicate_guard < 0:
+            raise ValueError(
+                "SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS cannot be negative"
+            )
         self.previous_command = env("MOODE_PREVIOUS_CMD", "previous")
         self.next_command = env("MOODE_NEXT_CMD", "next")
         self.home_mask = int(env("SIRI_HOME_BUTTON_MASK", "0x01"), 0)
@@ -2011,12 +2028,21 @@ class ButtonMapper:
             self.last_touch_x = None
             self.last_touch_time = 0.0
             self.touch_click_handled = False
+            self.last_volume_press_time = 0.0
+            self.reconnect_duplicate_guard_until = 0.0
             self.home_fired = False
             if self.home_timer is not None:
                 self.home_timer.cancel()
                 self.home_timer = None
         if self.overlay_worker is not None:
             self.overlay_worker.cancel("shutdown")
+
+    def mark_connection_ready(self) -> None:
+        """Start a short guard against duplicate wake-up volume reports."""
+        with self.lock:
+            self.reconnect_duplicate_guard_until = (
+                time.monotonic() + self.reconnect_duplicate_guard
+            )
 
     def _run_shutdown(self) -> None:
         LOG.warning("Home held for %.1f seconds; shutting down the Raspberry Pi", self.home_hold_seconds)
@@ -2111,6 +2137,7 @@ class ButtonMapper:
         now = time.monotonic()
         touch_x = self.decode_touch_x(payload)
         with self.lock:
+            recovered_volume_press = False
             if touch_x is not None:
                 self.last_touch_x = touch_x
                 self.last_touch_time = now
@@ -2122,14 +2149,44 @@ class ButtonMapper:
                     payload.hex(" "),
                 )
             elif buttons == self.previous:
-                return
+                # ATT notifications have no application-level acknowledgement.
+                # If a volume release is lost, the next identical press would
+                # otherwise be suppressed forever as an unchanged state. Treat
+                # a suitably separated repeated volume report as a new press.
+                # Immediately after reconnect the Gen-1 remote can repeat the
+                # wake-up press in compact and extended reports before sending
+                # a release. Do not mistake that duplicate for a second click.
+                recovered_volume_press = (
+                    buttons in VOLUME_BUTTONS
+                    and now >= self.reconnect_duplicate_guard_until
+                    and now - self.last_volume_press_time
+                    >= self.volume_repeat_recovery
+                )
+                if not recovered_volume_press:
+                    if (
+                        buttons in VOLUME_BUTTONS
+                        and now < self.reconnect_duplicate_guard_until
+                    ):
+                        LOG.debug(
+                            "Ignoring repeated reconnect volume report: %s",
+                            payload.hex(" "),
+                        )
+                    return
+                LOG.debug(
+                    "Recovering repeated volume press without release: %s",
+                    payload.hex(" "),
+                )
 
             previous = self.previous
             newly_pressed = buttons & ~previous
+            if recovered_volume_press:
+                newly_pressed |= buttons
             if buttons != previous:
                 LOG.debug("Input notification: %s", payload.hex(" "))
                 self.previous = buttons
                 self._update_home_locked(previous, buttons)
+            if newly_pressed & (BUTTON_VOLUME_UP | BUTTON_VOLUME_DOWN):
+                self.last_volume_press_time = now
             touch_action = self._touch_click_action_locked(buttons, now)
 
         if touch_action is not None:
@@ -2268,6 +2325,7 @@ def run(args: argparse.Namespace) -> int:
                 else:
                     LOG.info("Connected; using default ATT MTU 23")
                 client.enable_input()
+                mapper.mark_connection_ready()
                 LOG.info("Ready; listening for notifications on 0x0023")
                 if args.battery_check > 0:
                     client.read_battery("Initial check")

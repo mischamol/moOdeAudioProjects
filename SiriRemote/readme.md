@@ -344,6 +344,18 @@ default split is `3096`, with a configurable center dead-zone of 60 units on
 either side. Configure this using `SIRI_TOUCH_X_SPLIT`,
 `SIRI_TOUCH_DEAD_ZONE`, and `SIRI_TOUCH_MAX_AGE_SECONDS`.
 
+Volume presses also tolerate a missing release notification. If a new
+Volume+/Volume- report repeats the current pressed state after at least 0.75
+seconds, it is treated as a new press. This prevents one lost `00 00` report
+from silently suppressing the next volume click. The recovery is deliberately
+limited to volume; Play/Pause, Menu, and Home cannot double-trigger this way.
+During reconnect, the same physical wake-up press can first arrive as `00 02`
+and then as `e0 02 00` before its release. A separate two-second reconnect
+guard suppresses that second representation, while real rapid clicks with
+release reports remain unaffected. Configure both intervals with
+`SIRI_VOLUME_REPEAT_RECOVERY_SECONDS` and
+`SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS`.
+
 Menu/Back uses Python `ctypes` and the X11 libraries already required by the
 local moOde display to alternate between Playback and the last Library view.
 The action starts as soon as Menu is pressed. It clicks moOde's cover-art link
@@ -466,7 +478,10 @@ to make it advertise. In that case Linux receives no `00 10` input report and
 no userspace program can determine which button caused the wake-up. The new
 bounded reconnect and 2000 ms supervision timeout keep subsequent buttons
 responsive; press Microphone/Siri once more after the remote has connected to
-show the percentage.
+show the percentage. On the tested first-generation remote, a Microphone/Siri
+press can also be followed by a normal Bluetooth disconnect; a command pressed
+during the following reconnect may therefore be delayed or consumed as the
+wake-up press.
 
 ## Troubleshooting
 
@@ -487,6 +502,32 @@ startup, the Python process now uses Linux's official Bluetooth Management API
 to load a 2000 ms timeout for this remote only. This is an in-memory controller
 setting: no kernel, BlueZ, or moOde file is modified. Set
 `SIRI_LE_SUPERVISION_TIMEOUT_MS=0` to retain the kernel default.
+
+### Intermittent missing or delayed buttons
+
+A button is recoverable in userspace only after the Bluetooth controller has
+received its ATT notification. A simultaneous daemon log and HCI capture on the
+tested Raspberry Pi showed that some missing presses produced no HCI/ATT packet
+at all. Other presses made the remote advertise, but the link failed during
+feature exchange or encryption with `Connection Failed to be Established
+(0x3e)` or `Connection Timeout (0x08)`. Those events happen below the Python
+daemon; retrying a moOde command cannot recover them.
+
+Use `SIRI_DEBUG=yes` and compare the journal with a privileged `btmon` capture
+when diagnosing this distinction. On the tested installation, five presses at
+approximately 20–30 cm from the Pi were received correctly, while presses at
+the normal operating position were intermittent. Turning Wi-Fi off did not
+remove the failures. Increasing one connection attempt from four to 30 seconds
+and reading the battery every five seconds as a keepalive also failed to make
+the radio link reliable, so neither workaround is enabled in the package.
+
+If close-range operation is reliable, improve radio conditions instead of
+adding command retries: keep the Pi antenna area clear of metal and display
+cabling, increase separation from USB 3 devices with an extension cable, move
+the Pi, or use a standard external Bluetooth adapter placed away from the
+enclosure. Disabling Wi-Fi before boot is not recommended as a workaround: on
+the tested moOde configuration it prevented MPD and the local Chromium UI from
+finishing startup until Wi-Fi was enabled again.
 
 ### Device or resource busy
 
@@ -549,6 +590,11 @@ occupies fixed channel 4, the daemon asks
 Reconnect setup is bounded separately, while the established ATT socket stays
 blocking and CPU-efficient. The per-device supervision setting is loaded before
 the first connection and remains available to subsequent reconnects.
+
+The missing-release recovery is restricted to volume. A separate short guard
+after each completed reconnect handles the observed compact/extended duplicate
+of one wake-up volume press. It does not delay actions and it is bypassed as
+soon as an actual release is received.
 
 The `0xAF` initialization was derived from
 [SiriRemote-Linux](https://github.com/Yanndroid/SiriRemote-Linux). That project

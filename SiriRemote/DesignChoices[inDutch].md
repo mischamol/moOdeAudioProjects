@@ -57,6 +57,21 @@ bluetoothctl trust 70:48:0F:F2:65:99
 | touchpad rechts + fysieke click | Volgende nummer | `next` |
 | `00 00` | release | geen opdracht |
 
+Als een `00 00`-releasebericht ontbreekt, accepteert de daemon een identiek
+Volume+/Volume−-rapport na minimaal 0,75 seconde als een nieuwe druk. Zonder
+dit herstel bleef de interne knopstatus op `00 02` of `00 04` staan en werd de
+volgende volumeklik ten onrechte als duplicaat genegeerd. Dit gedrag geldt
+bewust alleen voor volume; Play/Pauze, Menu en Home kunnen hierdoor niet dubbel
+activeren. De grens is instelbaar met
+`SIRI_VOLUME_REPEAT_RECOVERY_SECONDS`.
+
+Bij een reconnect kan één fysieke wakkermaakdruk tweemaal worden gerapporteerd,
+bijvoorbeeld eerst als `00 02` en daarna als `e0 02 00`, nog voordat de release
+komt. Een afzonderlijke guard van twee seconden na een voltooide reconnect
+negeert alleen zo'n ongewijzigde volumestatus. Echte snelle klikken met een
+release ertussen blijven allemaal geldig. De guard is instelbaar met
+`SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS`.
+
 Pas `/etc/default/siri-remote-moode` aan en herstart na een wijziging:
 
 ```sh
@@ -271,9 +286,15 @@ BlueZ-configuratie niet.
   uitsluitend deze remote. Dit is een instelling in het controllergeheugen;
   er wordt geen kernel-, BlueZ- of moOde-bestand aangepast.
 - Deze remote gebruikt aantoonbaar MTU 23. Batterij-keepalive is uitgeschakeld,
-  omdat dit de verbinding niet betrouwbaarder maakte. Bij een bezette CID 4 vraagt de daemon BlueZ
+  omdat batterij-reads om de vijf seconden de verbinding in een praktijktest
+  niet betrouwbaar hielden. Ook één 30 seconden durende verbindingspoging gaf
+  geen betrouwbaardere radioverbinding dan de begrensde poging van vier
+  seconden. Bij een bezette CID 4 vraagt de daemon BlueZ
   automatisch de verbinding los te laten voordat hij opnieuw probeert.
 - Acties alleen op de overgang van los naar ingedrukt; `00 00` reset de status.
+- Na een reconnect onderdrukt een korte guard een bewezen dubbele compacte en
+  uitgebreide representatie van dezelfde volume-wakkermaakdruk. Een echte
+  release beëindigt de ingedrukte status direct.
 - Touchreports worden ook verwerkt als de knopbyte niet verandert. Een fysieke
   touchpad-click wordt maximaal eenmaal afgehandeld en gebruikt de meest recente
   X-positie om links/rechts te bepalen.
@@ -281,6 +302,25 @@ BlueZ-configuratie niet.
   succesvolle uitvoering anders de actie kan terugdraaien.
 - systemd herstart het proces bij crashes; de daemon zelf herverbindt bij gewone
   BLE-disconnects.
+
+## Bekende ontvangstbeperking
+
+Een gelijktijdige daemonlog en HCI-capture liet zien dat sommige gemiste
+knopdrukken geen ATT-pakket bij de Bluetoothcontroller opleverden. Bij andere
+drukken adverteerde de remote wel, maar mislukte de verbinding al bij de
+feature-uitwisseling of encryptie met HCI-status `0x3e` of `0x08`. Dit gebeurt
+onder de userspace-daemon; Python kan een niet ontvangen knopcode niet alsnog
+uitvoeren.
+
+Op het geteste systeem waren vijf van vijf drukken op circa 20–30 cm afstand
+goed, terwijl de normale gebruikspositie wisselende resultaten gaf. Wifi
+uitschakelen veranderde dit niet. Bovendien bleef de lokale moOde-GUI bij een
+volgende boot wachten totdat wifi weer was ingeschakeld. Wifi uitschakelen is
+daarom geen onderdeel van de oplossing. Als korte afstand wel betrouwbaar is,
+zijn antenneplaatsing, metalen afscherming, displaybekabeling en nabije USB
+3-apparatuur de relevante factoren. Mogelijke oplossingen zijn verplaatsen,
+meer fysieke afstand via een verlengkabel of een standaard externe
+Bluetoothadapter; hiervoor is geen aangepaste kernel nodig.
 
 Referenties:
 

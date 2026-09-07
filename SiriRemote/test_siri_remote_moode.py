@@ -74,6 +74,7 @@ class ButtonMapperTests(unittest.TestCase):
             "SIRI_TOUCH_X_SPLIT": "3096",
             "SIRI_TOUCH_DEAD_ZONE": "60",
             "SIRI_TOUCH_MAX_AGE_SECONDS": "1.5",
+            "SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS": "2",
             "MOODE_PREVIOUS_CMD": "previous",
             "MOODE_NEXT_CMD": "next",
         }
@@ -143,6 +144,63 @@ class ButtonMapperTests(unittest.TestCase):
         self.assertEqual(
             [action[1] for action in self.worker.actions],
             ["toggle_play_pause", "toggle_play_pause"],
+        )
+
+    def test_repeated_volume_press_recovers_when_release_is_missing(self):
+        with mock.patch.object(
+            remote.time, "monotonic", side_effect=(100.0, 100.3, 100.8),
+        ):
+            self.notify(bytes((0, remote.BUTTON_VOLUME_DOWN)))
+            self.notify(bytes((0, remote.BUTTON_VOLUME_DOWN)))
+            self.notify(bytes((0, remote.BUTTON_VOLUME_DOWN)))
+        self.assertEqual(
+            self.worker.actions,
+            [
+                ("Volume -", "set_volume -dn 5"),
+                ("Volume -", "set_volume -dn 5"),
+            ],
+        )
+
+    def test_reconnect_duplicate_volume_report_is_not_a_second_click(self):
+        with mock.patch.object(
+            remote.time, "monotonic", side_effect=(100.0, 100.2, 101.2),
+        ):
+            self.notify(bytes((0, remote.BUTTON_VOLUME_UP)))
+            self.mapper.mark_connection_ready()
+            self.notify(bytes((0xE0, remote.BUTTON_VOLUME_UP, 0)))
+        self.assertEqual(
+            self.worker.actions,
+            [("Volume +", "set_volume -up 5")],
+        )
+
+    def test_real_volume_clicks_with_releases_work_during_reconnect_guard(self):
+        with mock.patch.object(
+            remote.time,
+            "monotonic",
+            side_effect=(100.0, 100.1, 100.2, 100.3, 100.4),
+        ):
+            self.mapper.mark_connection_ready()
+            self.notify(bytes((0, remote.BUTTON_VOLUME_UP)))
+            self.notify(bytes((0, 0)))
+            self.notify(bytes((0, remote.BUTTON_VOLUME_UP)))
+            self.notify(bytes((0, 0)))
+        self.assertEqual(
+            self.worker.actions,
+            [
+                ("Volume +", "set_volume -up 5"),
+                ("Volume +", "set_volume -up 5"),
+            ],
+        )
+
+    def test_repeated_play_pause_without_release_is_not_recovered(self):
+        with mock.patch.object(
+            remote.time, "monotonic", side_effect=(100.0, 101.0),
+        ):
+            self.notify(bytes((0, remote.BUTTON_PLAY_PAUSE)))
+            self.notify(bytes((0, remote.BUTTON_PLAY_PAUSE)))
+        self.assertEqual(
+            self.worker.actions,
+            [("Play/Pause", "toggle_play_pause")],
         )
 
     def test_menu_button_submits_one_screen_click_per_press(self):
