@@ -146,7 +146,8 @@ De daemon toont zonder compositor of extra package een ronde schermoverlay:
 - Play/Pauze toont de toestand die moOde na de toggle retourneert;
 - Volume toont het werkelijke percentage dat moOde na de wijziging retourneert;
 - touchpad links/rechts toont Previous/Next;
-- Home toont tijdens vasthouden een annuleerbare `3`, `2`, `1`-aftelling;
+- Home toont tijdens vasthouden een annuleerbare `3`, `2`, `1`-aftelling en
+  daarna `0`, telkens groot en gecentreerd binnen hetzelfde powersymbool;
 - bij 5–9% Siri Remote-batterij verschijnt iedere vijf minuten één seconde een wit
   batterijsymbool met het zojuist uitgelezen percentage;
 - bij 0–4% wordt de batterij iedere minuut opnieuw uitgelezen en knippert
@@ -177,8 +178,9 @@ tekenen, zodat een oude overlay niet onder de volgende melding blijft staan.
 Bij het starten warmt de overlayworker X11, Cairo, het Lato-lettertype en het
 glasschalingspad onzichtbaar op. Dit is gereed voordat de afstandsbediening klaar
 is en voorkomt dat juist de eerste echte overlay merkbaar later verschijnt.
-Het laatste power-symbool bij shutdown gebruikt
-exact dezelfde positie en grootte als tijdens het aftellen. Er worden geen
+De shutdown-overlay bevat geen apart tekstlabel. Het vergrote powersymbool en
+het aftellende getal staan samen in het midden. Het laatste frame met `0`
+gebruikt exact dezelfde positie en grootte als de aftelling. Er worden geen
 moOde-bestanden gewijzigd.
 De overlay is klikdoorlatend, zodat Menu/Back ook tijdens een batterijmelding
 blijft werken.

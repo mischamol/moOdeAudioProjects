@@ -952,8 +952,10 @@ class X11Overlay:
     GLASS_SHADOW_OPACITY = 0.18
     REPAINT_SETTLE_SECONDS = 0.05
     COVER_CENTER_Y_RATIO = 0.29375
-    SHUTDOWN_LABEL_CENTER_Y = 0.30
-    SHUTDOWN_RING_CENTER_Y = 0.64
+    SHUTDOWN_RING_CENTER_Y = 0.50
+    SHUTDOWN_RING_RADIUS = 0.25
+    SHUTDOWN_RING_LINE_WIDTH = 0.032
+    SHUTDOWN_DIGIT_SIZE = 0.36
     SYMBOLS = {"PLAY", "PAUSE", "NEXT", "PREVIOUS", "BATTERY"}
     _x11_library: ctypes.CDLL | None = None
     _cairo_library: ctypes.CDLL | None = None
@@ -1329,33 +1331,28 @@ class X11Overlay:
             cairo.cairo_fill(context)
 
         def power_ring(center_y: float, content: str | None = None) -> None:
-            cairo.cairo_set_line_width(context, size * 0.026)
+            cairo.cairo_set_line_width(
+                context, size * cls.SHUTDOWN_RING_LINE_WIDTH,
+            )
             cairo.cairo_new_path(context)
             cairo.cairo_arc(
-                context, size * 0.50, size * center_y, size * 0.19,
+                context, size * 0.50, size * center_y,
+                size * cls.SHUTDOWN_RING_RADIUS,
                 5.45, 10.55,
             )
             cairo.cairo_stroke(context)
             cairo.cairo_new_path(context)
-            cairo.cairo_move_to(context, size * 0.50, size * (center_y - 0.24))
-            cairo.cairo_line_to(context, size * 0.50, size * (center_y - 0.11))
+            cairo.cairo_move_to(context, size * 0.50, size * (center_y - 0.31))
+            cairo.cairo_line_to(context, size * 0.50, size * (center_y - 0.145))
             cairo.cairo_stroke(context)
             if content is not None:
-                content_size = size * (0.285 if len(content) == 1 else 0.14)
+                content_size = size * (
+                    cls.SHUTDOWN_DIGIT_SIZE if len(content) == 1 else 0.18
+                )
                 centered(
                     content, content_size,
-                    size * (center_y + 0.035), bold=True,
+                    size * (center_y + 0.045), bold=True,
                 )
-
-        def shutdown_label(label: str) -> None:
-            reference_size = size * 0.285
-            reference_width = text_width("60%", reference_size, bold=True)
-            label_width = text_width(label, reference_size, bold=False)
-            label_size = reference_size * reference_width / label_width
-            centered(
-                label, label_size * 0.92,
-                size * cls.SHUTDOWN_LABEL_CENTER_Y, bold=False,
-            )
 
         try:
             cairo.cairo_set_source_rgba(
@@ -1478,10 +1475,8 @@ class X11Overlay:
                     centered(renderer, renderer_size, size * 0.57, bold=True)
             elif text.startswith("SHUTDOWN:"):
                 countdown = text.partition(":")[2]
-                shutdown_label("Shutdown:")
                 power_ring(cls.SHUTDOWN_RING_CENTER_Y, countdown)
             elif text == "SHUTTING DOWN":
-                shutdown_label("Shutdown")
                 power_ring(cls.SHUTDOWN_RING_CENTER_Y, "0")
             else:
                 font_size = size * 0.27

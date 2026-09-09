@@ -385,8 +385,8 @@ center is aligned exactly with the cover-art center.
 - Volume uses the actual percentage returned by `set_volume`.
 - Physical touchpad clicks show Previous or Next.
 - Home shows an interruptible `3`, `2`, `1` shutdown countdown, followed by
-  `Shutdown` and `0`. The final power symbol uses exactly the same size and
-  position as the countdown symbol.
+  `0`. Each number is centered inside the same enlarged power symbol; the
+  overlay contains no separate shutdown label.
 - At 5–9%, a white battery overlay shows the freshly read percentage for one
   second every five minutes.
 - At 0–4%, that fresh reading is repeated every minute and the white

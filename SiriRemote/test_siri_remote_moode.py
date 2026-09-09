@@ -483,9 +483,11 @@ class X11OverlayTests(unittest.TestCase):
         self.assertEqual(remote.X11Overlay.REPAINT_SETTLE_SECONDS, 0.05)
         self.assertEqual(remote.X11Overlay.COVER_CENTER_Y_RATIO, 0.29375)
 
-    def test_shutdown_ring_position_is_shared_by_countdown_and_final_frame(self):
-        self.assertEqual(remote.X11Overlay.SHUTDOWN_LABEL_CENTER_Y, 0.30)
-        self.assertEqual(remote.X11Overlay.SHUTDOWN_RING_CENTER_Y, 0.64)
+    def test_shutdown_ring_is_centered_and_enlarged_for_every_frame(self):
+        self.assertEqual(remote.X11Overlay.SHUTDOWN_RING_CENTER_Y, 0.50)
+        self.assertEqual(remote.X11Overlay.SHUTDOWN_RING_RADIUS, 0.25)
+        self.assertEqual(remote.X11Overlay.SHUTDOWN_RING_LINE_WIDTH, 0.032)
+        self.assertEqual(remote.X11Overlay.SHUTDOWN_DIGIT_SIZE, 0.36)
 
     def test_overlay_is_centered_inside_portrait_cover(self):
         size, left, top = remote.X11Overlay._overlay_geometry(720, 1280)
