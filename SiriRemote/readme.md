@@ -338,7 +338,8 @@ backoff between 0.2 and 1 second.
 | `00 04` | Volume Down | `set_volume -dn 5` |
 | `00 08` | Play/Pause | `toggle_play_pause` |
 | `00 10` | Microphone/Siri | Show the cached battery percentage for one second |
-| `00 20` | Menu/Back | Alternate Playback and the last Library view |
+| `00 20` once | Menu/Back | Alternate Playback and the last source view |
+| `00 20` twice | Menu/Back | Open moOde's Library source chooser |
 | Touchpad swipe | Move Library focus left, right, up, or down | X11 navigation event |
 | Touchpad physical click in Library | Activate the focused item | Existing moOde click handler |
 | Touchpad left + physical click in Playback | Previous track | Existing moOde Previous control |
@@ -372,19 +373,27 @@ release reports remain unaffected. Configure both intervals with
 `SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS`.
 
 Menu/Back uses Python `ctypes` and the X11 libraries already required by the
-local moOde display to alternate between Playback and the last Library view.
-The action starts as soon as Menu is pressed. It clicks moOde's cover-art link
-rather than artist metadata, because moOde
-routes radio and file metadata clicks to different views. The cover link is
-source-independent. Before every click, the script reads moOde's persisted
-`current_view`, so manual navigation is respected: `playback,album` returns to
-Album and `playback,radio` returns to Radio Stations. Folder, Tag, and Playlist
-use the same mechanism. At startup the script waits for X11 and first
-synchronizes the UI to Playback. It installs no additional package or
-configuration file. Library navigation is implemented by a separate JavaScript
-file and one marked include in moOde's header; the installer can safely reapply
-that minimal patch after an update and the uninstaller removes only its own
-marked block.
+local moOde display. One press alternates Playback and the actual source view
+stored in moOde's `current_view`: `playback,album` returns to Album and
+`playback,radio` returns to Radio Stations, with the same behavior for Folder,
+Tag, and Playlist. The single-click action waits at most 0.65 seconds so a
+second press can instead open moOde's existing Library source chooser. Swipe
+up/down (or left/right) through Radio, Folder, Tag, Album, and Playlist and
+physically click the touchpad to activate the focused source.
+
+Every remote navigation action or physical screen touch restarts a five-second
+inactivity timer. When it expires, the UI returns to fullscreen Playback only
+if moOde's current MPD state is `play`. It stays in the source or Library view
+when playback is paused, stopped, or reconnecting. Selecting an item that starts
+playback therefore also returns to fullscreen Playback after five seconds of no
+further interaction.
+
+At startup the script waits for X11 and first synchronizes the UI to Playback.
+It installs no additional package or configuration file. Library navigation is
+implemented by a separate JavaScript file and one marked include in moOde's
+header; the installer can safely reapply that minimal patch after an update and
+the uninstaller removes only its own marked block. Configure the Menu
+double-click window with `SIRI_MENU_DOUBLE_CLICK_SECONDS`.
 
 ### Non-blocking on-screen feedback
 

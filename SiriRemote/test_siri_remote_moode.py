@@ -20,6 +20,7 @@ class FakeWorker:
 class FakeClicker:
     def __init__(self):
         self.clicks = 0
+        self.library_menus = 0
         self.navigation_enabled = True
         self.navigation_actions = []
 
@@ -28,6 +29,9 @@ class FakeClicker:
 
     def submit_navigation(self, action):
         self.navigation_actions.append(action)
+
+    def submit_library_menu(self):
+        self.library_menus += 1
 
 
 class FakeOverlayWorker:
@@ -255,25 +259,48 @@ class ButtonMapperTests(unittest.TestCase):
             [("Play/Pause", "toggle_play_pause")],
         )
 
-    def test_menu_button_submits_one_screen_click_per_press(self):
+    def test_single_menu_click_is_submitted_after_double_click_window(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker,
             shutdown_action=lambda: None,
             screen_clicker=clicker,
         )
-        mapper.notification(
-            remote.HANDLE_INPUT_VALUE,
-            bytes((0, remote.BUTTON_MENU)),
-        )
+        timer = mock.Mock()
+        with mock.patch.object(remote.threading, "Timer", return_value=timer) as make:
+            mapper.notification(
+                remote.HANDLE_INPUT_VALUE,
+                bytes((0, remote.BUTTON_MENU)),
+            )
+            self.assertEqual(clicker.clicks, 0)
+            timer.start.assert_called_once_with()
+            make.call_args.args[1]()
         self.assertEqual(clicker.clicks, 1)
-        mapper.notification(
-            remote.HANDLE_INPUT_VALUE,
-            bytes((0, remote.BUTTON_MENU)),
-        )
-        mapper.notification(remote.HANDLE_INPUT_VALUE, bytes((0, 0)))
-        self.assertEqual(clicker.clicks, 1)
+        self.assertEqual(clicker.library_menus, 0)
         self.assertEqual(self.worker.actions, [])
+        mapper.reset()
+
+    def test_double_menu_click_opens_library_source_menu(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker,
+            shutdown_action=lambda: None,
+            screen_clicker=clicker,
+        )
+        timer = mock.Mock()
+        with mock.patch.object(remote.threading, "Timer", return_value=timer):
+            mapper.notification(
+                remote.HANDLE_INPUT_VALUE,
+                bytes((0, remote.BUTTON_MENU)),
+            )
+            mapper.notification(remote.HANDLE_INPUT_VALUE, bytes((0, 0)))
+            mapper.notification(
+                remote.HANDLE_INPUT_VALUE,
+                bytes((0, remote.BUTTON_MENU)),
+            )
+        timer.cancel.assert_called_once_with()
+        self.assertEqual(clicker.clicks, 0)
+        self.assertEqual(clicker.library_menus, 1)
         mapper.reset()
 
     def test_touch_navigation_waits_for_success_before_overlay(self):
@@ -461,6 +488,42 @@ class X11ClickWorkerTests(unittest.TestCase):
         ensure_playback.assert_not_called()
         emit.assert_called_once_with("right")
         self.assertEqual(guard.actions, ["Library navigation"])
+
+    def test_double_menu_emits_library_source_key(self):
+        guard = FakeRendererGuard(True)
+        with mock.patch.dict(
+            os.environ,
+            {"SIRI_MENU_SCREEN_CLICK": "yes", "SIRI_LIBRARY_NAVIGATION": "yes"},
+            clear=False,
+        ):
+            clicker = remote.X11ClickWorker(guard)
+        with mock.patch.object(clicker, "_ensure_playback"), \
+                mock.patch.object(clicker, "_emit_navigation_key") as emit:
+            clicker.start()
+            clicker.submit_library_menu()
+            clicker.stop()
+            clicker.thread.join(1)
+        emit.assert_called_once_with("library-menu")
+        self.assertEqual(guard.actions, ["Menu/Back"])
+
+    def test_single_menu_arms_browser_idle_return_after_click(self):
+        guard = FakeRendererGuard(True)
+        with mock.patch.dict(
+            os.environ,
+            {"SIRI_MENU_SCREEN_CLICK": "yes", "SIRI_LIBRARY_NAVIGATION": "yes"},
+            clear=False,
+        ):
+            clicker = remote.X11ClickWorker(guard)
+        with mock.patch.object(clicker, "_ensure_playback"), \
+                mock.patch.object(clicker, "_click") as click, \
+                mock.patch.object(clicker, "_emit_navigation_key") as emit:
+            clicker.start()
+            clicker.submit()
+            clicker.stop()
+            clicker.thread.join(1)
+        click.assert_called_once_with()
+        emit.assert_called_once_with("activity")
+        self.assertEqual(guard.actions, ["Menu/Back"])
 
     def test_invalid_navigation_action_is_rejected(self):
         with mock.patch.dict(

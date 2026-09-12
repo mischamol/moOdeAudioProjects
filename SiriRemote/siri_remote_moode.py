@@ -812,6 +812,14 @@ class X11ClickWorker:
         except queue.Full:
             LOG.error("X11 click queue full; dropping Menu/Back")
 
+    def submit_library_menu(self) -> None:
+        if not self.menu_enabled or not self.navigation_enabled:
+            return
+        try:
+            self.commands.put_nowait("library-menu")
+        except queue.Full:
+            LOG.error("X11 control queue full; dropping Library source menu")
+
     def submit_navigation(self, action: str) -> None:
         if not self.navigation_enabled:
             return
@@ -883,6 +891,8 @@ class X11ClickWorker:
             "select": 0xFF0D,
             "select-left": ord("p"),
             "select-right": ord("n"),
+            "activity": ord("a"),
+            "library-menu": ord("b"),
         }
         x11, xtst = self._load_libraries()
         display = self._open_display(x11)
@@ -990,6 +1000,17 @@ class X11ClickWorker:
                     ):
                         continue
                     self._click()
+                    # Arm/cancel the browser-side idle return after moOde has
+                    # processed the synthetic click and changed currentView.
+                    self._emit_navigation_key("activity")
+                elif item == "library-menu":
+                    if (
+                        self.renderer_guard is not None
+                        and not self.renderer_guard.allows("Menu/Back")
+                    ):
+                        continue
+                    self._emit_navigation_key("library-menu")
+                    LOG.info("Menu/Back double-click -> Library source menu")
                 else:
                     action = item.partition(":")[2]
                     if (
@@ -2089,6 +2110,12 @@ class ButtonMapper:
         self.shutdown_action = shutdown_action or self._run_shutdown
         self.home_timer: threading.Timer | None = None
         self.home_fired = False
+        self.menu_double_click_seconds = float(
+            env("SIRI_MENU_DOUBLE_CLICK_SECONDS", "0.65")
+        )
+        if self.menu_double_click_seconds <= 0:
+            raise ValueError("SIRI_MENU_DOUBLE_CLICK_SECONDS must be greater than zero")
+        self.menu_timer: threading.Timer | None = None
         self.mic_mask = int(env("SIRI_MIC_BUTTON_MASK", "0x10"), 0)
         if self.mic_mask <= 0 or self.mic_mask > 0xFF:
             raise ValueError("SIRI_MIC_BUTTON_MASK must be between 0x01 and 0xff")
@@ -2119,6 +2146,9 @@ class ButtonMapper:
             if self.home_timer is not None:
                 self.home_timer.cancel()
                 self.home_timer = None
+            if self.menu_timer is not None:
+                self.menu_timer.cancel()
+                self.menu_timer = None
         if self.overlay_worker is not None:
             self.overlay_worker.cancel("shutdown")
 
@@ -2170,6 +2200,35 @@ class ButtonMapper:
             self.home_fired = False
             if self.overlay_worker is not None:
                 self.overlay_worker.cancel("shutdown")
+
+    def _menu_single_elapsed(self) -> None:
+        with self.lock:
+            if self.menu_timer is None:
+                return
+            self.menu_timer = None
+        if self.screen_clicker is not None:
+            self.screen_clicker.submit()
+
+    def _handle_menu_press(self) -> None:
+        with self.lock:
+            if self.menu_timer is not None:
+                timer = self.menu_timer
+                self.menu_timer = None
+                double_click = True
+            else:
+                timer = threading.Timer(
+                    self.menu_double_click_seconds,
+                    self._menu_single_elapsed,
+                )
+                timer.daemon = True
+                self.menu_timer = timer
+                double_click = False
+        if double_click:
+            timer.cancel()
+            if self.screen_clicker is not None:
+                self.screen_clicker.submit_library_menu()
+        else:
+            timer.start()
 
     @staticmethod
     def decode_touch(payload: bytes) -> tuple[int, int, int] | None:
@@ -2344,7 +2403,7 @@ class ButtonMapper:
             self.battery_display_action()
         if newly_pressed & BUTTON_MENU:
             if self.screen_clicker is not None:
-                self.screen_clicker.submit()
+                self._handle_menu_press()
             else:
                 name, command = self.mapping[BUTTON_MENU]
                 if command:

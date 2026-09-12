@@ -3,7 +3,16 @@
     'use strict';
 
     const SELECTED_CLASS = 'siri-remote-selected';
+    const SOURCE_SELECTOR = [
+        '#viewswitch .radio-view-btn',
+        '#viewswitch .folder-view-btn',
+        '#viewswitch .tag-view-btn',
+        '#viewswitch .album-view-btn',
+        '#viewswitch .playlist-view-btn',
+    ].join(', ');
+    const PLAYBACK_RETURN_MS = 5000;
     let selected = null;
+    let playbackReturnTimer = null;
 
     const style = document.createElement('style');
     style.textContent = `
@@ -31,6 +40,10 @@
     }
 
     function candidates() {
+        const sources = Array.from(document.querySelectorAll(SOURCE_SELECTOR)).filter(visible);
+        if (sources.length) {
+            return sources;
+        }
         let selector = '';
         switch (window.currentView) {
         case 'album':
@@ -77,6 +90,75 @@
         document.documentElement.classList.remove('siri-remote-navigating');
     }
 
+    function isPlayback() {
+        return String(window.currentView).startsWith('playback');
+    }
+
+    function isActuallyPlaying() {
+        return Boolean(window.MPD && window.MPD.json && window.MPD.json.state === 'play');
+    }
+
+    function returnToPlayback() {
+        playbackReturnTimer = null;
+        if (isPlayback() || !isActuallyPlaying()) {
+            return;
+        }
+        clearSelection();
+        const openDropdown = document.querySelector('#viewswitch .dropdown.open #current-tab');
+        if (openDropdown) {
+            openDropdown.click();
+        }
+        const playbar = document.querySelector('#playbar-switch, #playbar-cover, #playbar-title');
+        if (playbar) {
+            playbar.click();
+        }
+    }
+
+    function schedulePlaybackReturn() {
+        if (playbackReturnTimer !== null) {
+            window.clearTimeout(playbackReturnTimer);
+            playbackReturnTimer = null;
+        }
+        if (!isPlayback()) {
+            playbackReturnTimer = window.setTimeout(returnToPlayback, PLAYBACK_RETURN_MS);
+        }
+    }
+
+    function scheduleAfterViewChange() {
+        window.setTimeout(schedulePlaybackReturn, 80);
+    }
+
+    function openSourcePicker() {
+        function openMenu() {
+            const toggle = document.getElementById('current-tab');
+            if (!toggle) {
+                return;
+            }
+            if (!Array.from(document.querySelectorAll(SOURCE_SELECTOR)).some(visible)) {
+                toggle.click();
+            }
+            window.setTimeout(function () {
+                const items = Array.from(document.querySelectorAll(SOURCE_SELECTOR)).filter(visible);
+                const current = startingItem(items);
+                if (current) {
+                    mark(current);
+                }
+                schedulePlaybackReturn();
+            }, 80);
+        }
+
+        clearSelection();
+        if (isPlayback()) {
+            const library = document.querySelector('#coverart-url, #playback-switch');
+            if (library) {
+                library.click();
+            }
+            window.setTimeout(openMenu, 80);
+        } else {
+            openMenu();
+        }
+    }
+
     function startingItem(items) {
         if (selected && items.includes(selected)) {
             return selected;
@@ -91,6 +173,10 @@
         const current = startingItem(items);
         if (!current) {
             return false;
+        }
+        if (current.matches(SOURCE_SELECTOR)) {
+            if (direction === 'left') direction = 'up';
+            if (direction === 'right') direction = 'down';
         }
         if (!selected) {
             mark(current);
@@ -107,6 +193,7 @@
             return option.dy > 2;
         });
         if (!options.length) {
+            schedulePlaybackReturn();
             return true;
         }
         options.sort((a, b) => {
@@ -120,6 +207,7 @@
             return score(a) - score(b);
         });
         mark(options[0].item);
+        schedulePlaybackReturn();
         return true;
     }
 
@@ -138,7 +226,9 @@
         if (!selected) {
             mark(item);
         }
-        if (window.currentView === 'album' || window.currentView === 'playlist' ||
+        if (item.matches(SOURCE_SELECTOR)) {
+            item.click();
+        } else if (window.currentView === 'album' || window.currentView === 'playlist' ||
                 window.currentView === 'radio') {
             const image = item.querySelector('img');
             if (image) image.click();
@@ -150,6 +240,7 @@
             (browse || action || item).click();
         }
         clearSelection();
+        scheduleAfterViewChange();
         return true;
     }
 
@@ -164,9 +255,30 @@
         else if (event.key === 'Enter') handled = activateSelected(null);
         else if (key === 'p') handled = activateSelected('left');
         else if (key === 'n') handled = activateSelected('right');
+        else if (key === 'a') {
+            scheduleAfterViewChange();
+            handled = true;
+        }
+        else if (key === 'b') {
+            openSourcePicker();
+            handled = true;
+        }
         else return;
         event.preventDefault();
         event.stopImmediatePropagation();
+    }, true);
+
+    document.addEventListener('pointerdown', function () {
+        if (!isPlayback()) {
+            schedulePlaybackReturn();
+        }
+    }, true);
+
+    document.addEventListener('click', function (event) {
+        if (event.target.closest(SOURCE_SELECTOR)) {
+            clearSelection();
+            scheduleAfterViewChange();
+        }
     }, true);
 
     new MutationObserver(function () {

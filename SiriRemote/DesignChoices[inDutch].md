@@ -52,7 +52,8 @@ bluetoothctl trust 70:48:0F:F2:65:99
 | `00 04` | Volume - | `set_volume -dn 5` |
 | `00 08` | Play/Pause | `toggle_play_pause` |
 | `00 10` | Microfoon/Siri | toon de gecachete batterijstand één seconde |
-| `00 20` | Menu/Back | wissel Playback en de laatste Library-view |
+| `00 20` eenmaal | Menu/Back | wissel Playback en de laatste bronweergave |
+| `00 20` tweemaal | Menu/Back | open moOde's Library-bronkeuze |
 | touchpad vegen | verplaats Library-focus links/rechts/omhoog/omlaag | X11-navigatie-event |
 | fysieke touchpad-click in Library | activeer het gekozen item | bestaande moOde-clickhandler |
 | touchpad links + fysieke click in Playback | Vorige nummer | bestaande Previous-knop |
@@ -123,14 +124,25 @@ instelbaar met `SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_MAX_SECONDS` en
 `SIRI_TOUCH_X_SPLIT`, `SIRI_TOUCH_DEAD_ZONE` en
 `SIRI_TOUCH_MAX_AGE_SECONDS`.
 
-Een Menu/Back-druk wisselt direct via de al aanwezige X11-bibliotheken tussen Playback
-en de Library-view waar Playback werkelijk vandaan kwam. Voor iedere druk leest
-het script moOde's actuele `current_view`; het gebruikt dus geen interne gok die
+Een enkele Menu/Back-druk wisselt via de al aanwezige X11-bibliotheken tussen
+Playback en de bronweergave waar Playback werkelijk vandaan kwam. Het script
+leest moOde's actuele `current_view`; het gebruikt dus geen interne gok die
 verouderd raakt als het scherm handmatig wordt bediend. Vanuit `playback,album`
 keert Menu terug naar Album, vanuit `playback,radio` naar Radio Stations. Dit
-werkt hetzelfde voor Folder, Tag en Playlist.
-Het Python-script klikt daarvoor op de cover-art-link in plaats van op
-artiest/metadata.
+werkt hetzelfde voor Folder, Tag en Playlist. Het Python-script klikt daarvoor
+op de cover-art-link in plaats van op artiest/metadata.
+
+De enkelklik wacht maximaal 0,65 seconde om een tweede Menu-druk te kunnen
+herkennen. Een dubbelklik opent moOde's bestaande Library-dropdown met Radio,
+Folder, Tag, Album en Playlist. Omhoog/omlaag en links/rechts lopen door deze
+bronlijst; een fysieke touchpad-click activeert de gekozen bron.
+
+Iedere remote-navigatieactie of echte aanraking van het scherm herstart een
+inactiviteitstimer van vijf seconden. Na afloop keert de WebUI alleen naar de
+fullscreen Playback-weergave terug als moOde op dat moment werkelijk MPD-status
+`play` heeft. Bij `pause`, `stop` of `reconnect` blijft de geopende bron- of
+Library-weergave staan. Het dubbelklikvenster is instelbaar met
+`SIRI_MENU_DOUBLE_CLICK_SECONDS`.
 Bij het starten wacht het script op X11 en synchroniseert het eerst naar
 Playback. Er worden geen extra packages geïnstalleerd. Voor Library-navigatie
 plaatst de installer één JavaScript-bestand en één duidelijk gemarkeerde include

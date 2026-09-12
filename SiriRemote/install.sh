@@ -50,6 +50,8 @@ grep -q '^SIRI_MIC_BUTTON_MASK=' /etc/default/siri-remote-moode || printf '%s\n'
 display_home=$(getent passwd 1000 | cut -d: -f6)
 [ -n "$display_home" ] || display_home=/home/pi
 grep -q '^SIRI_MENU_SCREEN_CLICK=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_MENU_SCREEN_CLICK=yes' >> /etc/default/siri-remote-moode
+sed -i 's/^SIRI_MENU_DOUBLE_CLICK_SECONDS=0.35$/SIRI_MENU_DOUBLE_CLICK_SECONDS=0.65/' /etc/default/siri-remote-moode
+grep -q '^SIRI_MENU_DOUBLE_CLICK_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_MENU_DOUBLE_CLICK_SECONDS=0.65' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_X_DISPLAY=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_X_DISPLAY=:0' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_XAUTHORITY=' /etc/default/siri-remote-moode || printf 'SIRI_XAUTHORITY=%s/.Xauthority\n' "$display_home" >> /etc/default/siri-remote-moode
 grep -q '^SIRI_OVERLAY=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_OVERLAY=yes' >> /etc/default/siri-remote-moode
