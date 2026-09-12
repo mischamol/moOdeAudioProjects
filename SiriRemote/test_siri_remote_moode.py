@@ -20,9 +20,14 @@ class FakeWorker:
 class FakeClicker:
     def __init__(self):
         self.clicks = 0
+        self.navigation_enabled = True
+        self.navigation_actions = []
 
     def submit(self):
         self.clicks += 1
+
+    def submit_navigation(self, action):
+        self.navigation_actions.append(action)
 
 
 class FakeOverlayWorker:
@@ -55,7 +60,7 @@ class FakeRendererGuard:
         return self.allowed
 
 
-def touch_report(x, buttons=0, pressure=40):
+def touch_report(x, buttons=0, pressure=40, y=3800):
     payload = bytearray(13)
     payload[0] = 1
     payload[1] = buttons
@@ -63,6 +68,9 @@ def touch_report(x, buttons=0, pressure=40):
     raw_x = x & 0x0FFF
     payload[6] = raw_x & 0xFF
     payload[7] = (raw_x >> 8) & 0x0F
+    raw_y = y & 0x0FFF
+    payload[7] |= (raw_y & 0x0F) << 4
+    payload[8] = (raw_y >> 4) & 0xFF
     payload[10] = pressure
     payload[11] = pressure
     return bytes(payload)
@@ -94,6 +102,12 @@ class ButtonMapperTests(unittest.TestCase):
         self.assertEqual(self.mapper.decode_touch_x(touch_report(2500)), 2500)
         # A raw value below 0x800 wraps into the upper 12-bit range.
         self.assertEqual(self.mapper.decode_touch_x(touch_report(0x020)), 0x1020)
+
+    def test_touch_decode_includes_y_and_pressure(self):
+        self.assertEqual(
+            self.mapper.decode_touch(touch_report(2500, pressure=44, y=4200)),
+            (2500, 4200, 44),
+        )
 
     def test_left_position_followed_by_click_is_previous_once(self):
         self.notify(touch_report(2500))
@@ -136,6 +150,44 @@ class ButtonMapperTests(unittest.TestCase):
         self.notify(touch_report(2500))
         self.notify(touch_report(3600))
         self.assertEqual(self.worker.actions, [])
+
+    def test_horizontal_and_vertical_swipes_are_sent_to_library_navigation(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        with mock.patch.object(
+            remote.time, "monotonic",
+            side_effect=(100.0, 100.1, 101.0, 101.1),
+        ):
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2500, y=3500))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3520))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3400))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3020, y=3900))
+        self.assertEqual(clicker.navigation_actions, ["right", "up"])
+        self.assertEqual(self.worker.actions, [])
+        mapper.reset()
+
+    def test_physical_click_routes_to_selection_when_navigation_is_enabled(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        mapper.notification(
+            remote.HANDLE_INPUT_VALUE,
+            touch_report(2500, remote.BUTTON_TOUCHPAD),
+        )
+        mapper.notification(remote.HANDLE_INPUT_VALUE, bytes((0, 0)))
+        mapper.notification(
+            remote.HANDLE_INPUT_VALUE,
+            touch_report(3096, remote.BUTTON_TOUCHPAD),
+        )
+        self.assertEqual(
+            clicker.navigation_actions,
+            ["select-left", "select"],
+        )
+        self.assertEqual(self.worker.actions, [])
+        mapper.reset()
 
     def test_play_pause_still_works_after_each_release(self):
         for _ in range(2):
@@ -391,6 +443,32 @@ class X11ClickWorkerTests(unittest.TestCase):
         self.assertFalse(clicker.thread.is_alive())
         click.assert_not_called()
         self.assertEqual(guard.actions, ["Menu/Back"])
+
+    def test_navigation_emits_private_key_when_renderer_allows_it(self):
+        guard = FakeRendererGuard(True)
+        with mock.patch.dict(
+            os.environ,
+            {"SIRI_MENU_SCREEN_CLICK": "no", "SIRI_LIBRARY_NAVIGATION": "yes"},
+            clear=False,
+        ):
+            clicker = remote.X11ClickWorker(guard)
+        with mock.patch.object(clicker, "_ensure_playback") as ensure_playback, \
+                mock.patch.object(clicker, "_emit_navigation_key") as emit:
+            clicker.start()
+            clicker.submit_navigation("right")
+            clicker.stop()
+            clicker.thread.join(1)
+        ensure_playback.assert_not_called()
+        emit.assert_called_once_with("right")
+        self.assertEqual(guard.actions, ["Library navigation"])
+
+    def test_invalid_navigation_action_is_rejected(self):
+        with mock.patch.dict(
+            os.environ, {"SIRI_LIBRARY_NAVIGATION": "yes"}, clear=False,
+        ):
+            clicker = remote.X11ClickWorker()
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            clicker.submit_navigation("diagonal")
 
     def test_menu_uses_actual_moode_view_for_both_directions(self):
         env = {

@@ -254,9 +254,13 @@ The installer creates or updates:
 /usr/local/sbin/siri_remote_moode.py
 /etc/systemd/system/siri-remote-moode.service
 /etc/default/siri-remote-moode
+/var/www/js/siri-remote-navigation.js
 ```
 
-It also enables and starts the service.
+It also adds one clearly marked script include to `/var/www/header.php`, stores
+a backup below `/var/backups/siri-remote-moode-navigation/`, reloads the local
+display, and enables and starts the service. Rerun the same installer after a
+moOde update to restore this small WebUI integration.
 
 ## 7. Perform the first connection test
 
@@ -286,8 +290,8 @@ Button presses should then produce messages such as:
 Play/Pause -> toggle_play_pause
 Volume + -> set_volume -up 5
 Volume - -> set_volume -dn 5
-Touchpad left / Previous -> previous
-Touchpad right / Next -> next
+Touchpad library navigation -> right
+Touchpad library navigation -> select
 ```
 
 Press `Ctrl+C` to stop following the log. This does not stop the daemon.
@@ -335,14 +339,25 @@ backoff between 0.2 and 1 second.
 | `00 08` | Play/Pause | `toggle_play_pause` |
 | `00 10` | Microphone/Siri | Show the cached battery percentage for one second |
 | `00 20` | Menu/Back | Alternate Playback and the last Library view |
-| Touchpad left + physical click | Previous track | `previous` |
-| Touchpad right + physical click | Next track | `next` |
+| Touchpad swipe | Move Library focus left, right, up, or down | X11 navigation event |
+| Touchpad physical click in Library | Activate the focused item | Existing moOde click handler |
+| Touchpad left + physical click in Playback | Previous track | Existing moOde Previous control |
+| Touchpad right + physical click in Playback | Next track | Existing moOde Next control |
 
-Ordinary touches and swipes are ignored. Only a physical touchpad click invokes
-a command. The first-generation X range is approximately `2278..3914`; the
-default split is `3096`, with a configurable center dead-zone of 60 units on
-either side. Configure this using `SIRI_TOUCH_X_SPLIT`,
-`SIRI_TOUCH_DEAD_ZONE`, and `SIRI_TOUCH_MAX_AGE_SECONDS`.
+In Album, Tag, Folder, Playlist, and Radio views, a swipe moves a single visible
+focus frame in the corresponding direction and a physical touchpad click
+activates that item through moOde's existing click handler. The first swipe
+moves immediately; it is not consumed merely to create focus. While browsing,
+moOde's old active background is hidden so only one selection is visible. After
+activation, the temporary focus is cleared and moOde's normal active marker is
+shown again. In Playback, clicking the left or right touchpad half retains the
+Previous/Next behavior.
+
+The first-generation touch area is decoded in both axes. Swipe recognition is
+configured with `SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_MAX_SECONDS`, and
+`SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. The click split remains configurable with
+`SIRI_TOUCH_X_SPLIT`, `SIRI_TOUCH_DEAD_ZONE`, and
+`SIRI_TOUCH_MAX_AGE_SECONDS`.
 
 Volume presses also tolerate a missing release notification. If a new
 Volume+/Volume- report repeats the current pressed state after at least 0.75
@@ -366,7 +381,10 @@ source-independent. Before every click, the script reads moOde's persisted
 Album and `playback,radio` returns to Radio Stations. Folder, Tag, and Playlist
 use the same mechanism. At startup the script waits for X11 and first
 synchronizes the UI to Playback. It installs no additional package or
-configuration file and modifies no moOde WebUI file.
+configuration file. Library navigation is implemented by a separate JavaScript
+file and one marked include in moOde's header; the installer can safely reapply
+that minimal patch after an update and the uninstaller removes only its own
+marked block.
 
 ### Non-blocking on-screen feedback
 
@@ -383,7 +401,8 @@ center is aligned exactly with the cover-art center.
 
 - Play/Pause uses the resulting state returned by `toggle_play_pause`.
 - Volume uses the actual percentage returned by `set_volume`.
-- Physical touchpad clicks show Previous or Next.
+- In Playback, physical clicks on the left or right touchpad half select the
+  previous or next track and show the corresponding overlay.
 - Home shows an interruptible `3`, `2`, `1` shutdown countdown, followed by
   `0`. Each number is centered inside the same enlarged power symbol; the
   overlay contains no separate shutdown label.
@@ -617,9 +636,11 @@ Run the included uninstaller from the extracted package directory:
 sudo sh ./uninstall.sh
 ```
 
-This stops and disables the service and removes the installed daemon, unit file,
-and `/etc/default/siri-remote-moode`. To retain the configuration for a later
-installation, use:
+This stops and disables the service, removes the installed daemon, unit file,
+and `/etc/default/siri-remote-moode`, and surgically removes the marked
+navigation include and JavaScript file from the moOde WebUI. A safety backup of
+the header is retained. To retain the configuration for a later installation,
+use:
 
 ```sh
 sudo sh ./uninstall.sh --keep-config

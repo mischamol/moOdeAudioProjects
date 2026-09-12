@@ -53,8 +53,10 @@ bluetoothctl trust 70:48:0F:F2:65:99
 | `00 08` | Play/Pause | `toggle_play_pause` |
 | `00 10` | Microfoon/Siri | toon de gecachete batterijstand één seconde |
 | `00 20` | Menu/Back | wissel Playback en de laatste Library-view |
-| touchpad links + fysieke click | Vorige nummer | `previous` |
-| touchpad rechts + fysieke click | Volgende nummer | `next` |
+| touchpad vegen | verplaats Library-focus links/rechts/omhoog/omlaag | X11-navigatie-event |
+| fysieke touchpad-click in Library | activeer het gekozen item | bestaande moOde-clickhandler |
+| touchpad links + fysieke click in Playback | Vorige nummer | bestaande Previous-knop |
+| touchpad rechts + fysieke click in Playback | Volgende nummer | bestaande Next-knop |
 | `00 00` | release | geen opdracht |
 
 Als een `00 00`-releasebericht ontbreekt, accepteert de daemon een identiek
@@ -106,11 +108,20 @@ SIRI_RENDERER_DIRECT_DB=yes
 MOODE_DB_PATH=/var/local/www/db/moode-sqlite3.db
 ```
 
-Alleen een fysieke click op het touchpad geeft een opdracht; aanraken en vegen
-doen niets. De Gen-1 X-positie ligt ongeveer tussen `2278` en `3914`. De daemon
-gebruikt standaard `3096` als midden en negeert een smalle zone van 60 eenheden
-aan beide kanten van het midden. Dit is instelbaar met `SIRI_TOUCH_X_SPLIT`,
-`SIRI_TOUCH_DEAD_ZONE` en `SIRI_TOUCH_MAX_AGE_SECONDS`.
+In Album, Tag, Folder, Playlist en Radio verplaatst een veegbeweging de focus
+één zichtbaar item naar links, rechts, boven of beneden. De eerste veegbeweging
+verplaatst meteen; er is geen extra veeg nodig om focus te activeren. Een fysieke
+click activeert het gekozen item via moOde's bestaande clickhandler. Tijdens het
+bladeren wordt de oude `.active`-achtergrond tijdelijk verborgen, zodat precies
+één kader zichtbaar is. Na activeren verdwijnt de tijdelijke focus en blijft
+alleen moOde's normale markering over. In Playback blijft een fysieke click op
+de linker- of rechterhelft Previous/Next uitvoeren.
+
+De Gen-1-touchdata wordt in beide assen gedecodeerd. De veegdrempels zijn
+instelbaar met `SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_MAX_SECONDS` en
+`SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. De klikverdeling blijft instelbaar met
+`SIRI_TOUCH_X_SPLIT`, `SIRI_TOUCH_DEAD_ZONE` en
+`SIRI_TOUCH_MAX_AGE_SECONDS`.
 
 Een Menu/Back-druk wisselt direct via de al aanwezige X11-bibliotheken tussen Playback
 en de Library-view waar Playback werkelijk vandaan kwam. Voor iedere druk leest
@@ -121,8 +132,11 @@ werkt hetzelfde voor Folder, Tag en Playlist.
 Het Python-script klikt daarvoor op de cover-art-link in plaats van op
 artiest/metadata.
 Bij het starten wacht het script op X11 en synchroniseert het eerst naar
-Playback. Er worden geen extra packages, configuratiebestanden of
-moOde-bestanden toegevoegd.
+Playback. Er worden geen extra packages geïnstalleerd. Voor Library-navigatie
+plaatst de installer één JavaScript-bestand en één duidelijk gemarkeerde include
+in moOde's `header.php`. Na een moOde-update volstaat dezelfde installer om dit
+opnieuw toe te passen; uninstall verwijdert uitsluitend het eigen markerblok en
+maakt vooraf een veiligheidskopie.
 
 De Home/TV-knop voert bij kort indrukken niets uit. Alleen onafgebroken drie
 seconden vasthouden voert `/usr/bin/systemctl poweroff` uit. De knopcode en duur zijn instelbaar met
@@ -145,7 +159,7 @@ De daemon toont zonder compositor of extra package een ronde schermoverlay:
 
 - Play/Pauze toont de toestand die moOde na de toggle retourneert;
 - Volume toont het werkelijke percentage dat moOde na de wijziging retourneert;
-- touchpad links/rechts toont Previous/Next;
+- in Playback toont een fysieke touchpad-click links/rechts Previous/Next;
 - Home toont tijdens vasthouden een annuleerbare `3`, `2`, `1`-aftelling en
   daarna `0`, telkens groot en gecentreerd binnen hetzelfde powersymbool;
 - bij 5–9% Siri Remote-batterij verschijnt iedere vijf minuten één seconde een wit
@@ -181,7 +195,8 @@ is en voorkomt dat juist de eerste echte overlay merkbaar later verschijnt.
 De shutdown-overlay bevat geen apart tekstlabel. Het vergrote powersymbool en
 het aftellende getal staan samen in het midden. Het laatste frame met `0`
 gebruikt exact dezelfde positie en grootte als de aftelling. Er worden geen
-moOde-bestanden gewijzigd.
+moOde-bestanden gewijzigd voor de overlay zelf; alleen de afzonderlijke,
+hierboven beschreven navigatie-integratie past het gemarkeerde headerblok aan.
 De overlay is klikdoorlatend, zodat Menu/Back ook tijdens een batterijmelding
 blijft werken.
 

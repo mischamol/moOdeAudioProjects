@@ -9,6 +9,10 @@ case "$mac" in
     *) echo "Usage: sudo ./install.sh [AA:BB:CC:DD:EE:FF]" >&2; exit 2 ;;
 esac
 
+# Install the small, marked moOde integration before starting the daemon. This
+# makes the same command sufficient after a moOde update has replaced header.php.
+sh "$script_dir/moode-navigation/install.sh"
+
 install -o root -g root -m 0755 "$script_dir/siri_remote_moode.py" /usr/local/sbin/siri_remote_moode.py
 install -o root -g root -m 0644 "$script_dir/siri-remote-moode.service" /etc/systemd/system/siri-remote-moode.service
 
@@ -28,6 +32,10 @@ grep -q '^MOODE_DB_PATH=' /etc/default/siri-remote-moode || printf '%s\n' 'MOODE
 grep -q '^SIRI_TOUCH_X_SPLIT=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_X_SPLIT=3096' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_TOUCH_DEAD_ZONE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_DEAD_ZONE=60' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_TOUCH_MAX_AGE_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_MAX_AGE_SECONDS=1.5' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_LIBRARY_NAVIGATION=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_LIBRARY_NAVIGATION=yes' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_SWIPE_MIN_DISTANCE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MIN_DISTANCE=350' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_SWIPE_MAX_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MAX_SECONDS=0.8' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_TOUCH_SEQUENCE_GAP_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_SEQUENCE_GAP_SECONDS=0.20' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_VOLUME_REPEAT_RECOVERY_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_VOLUME_REPEAT_RECOVERY_SECONDS=0.75' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS=2' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_HOME_BUTTON_MASK=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_HOME_BUTTON_MASK=0x01' >> /etc/default/siri-remote-moode
