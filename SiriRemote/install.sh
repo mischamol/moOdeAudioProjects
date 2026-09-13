@@ -2,16 +2,44 @@
 set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-mac=${1:-70:48:0F:F2:65:99}
+mac=70:48:0F:F2:65:99
+mac_seen=no
+navigation=yes
+
+usage() {
+    echo "Usage: sudo ./install.sh [-nonavigation] [AA:BB:CC:DD:EE:FF]" >&2
+    exit 2
+}
+
+for argument in "$@"; do
+    case "$argument" in
+        -nonavigation)
+            navigation=no
+            ;;
+        ??\:??\:??\:??\:??\:??)
+            [ "$mac_seen" = no ] || usage
+            mac=$argument
+            mac_seen=yes
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
 
 case "$mac" in
     ??\:??\:??\:??\:??\:??) ;;
-    *) echo "Usage: sudo ./install.sh [AA:BB:CC:DD:EE:FF]" >&2; exit 2 ;;
+    *) usage ;;
 esac
 
-# Install the small, marked moOde integration before starting the daemon. This
-# makes the same command sufficient after a moOde update has replaced header.php.
-sh "$script_dir/moode-navigation/install.sh"
+# Install the small, marked moOde integration by default. -nonavigation also
+# removes a previously installed integration, making the option deterministic
+# when the installer is rerun after an upgrade.
+if [ "$navigation" = yes ]; then
+    sh "$script_dir/moode-navigation/install.sh"
+else
+    sh "$script_dir/moode-navigation/uninstall.sh"
+fi
 
 install -o root -g root -m 0755 "$script_dir/siri_remote_moode.py" /usr/local/sbin/siri_remote_moode.py
 install -o root -g root -m 0644 "$script_dir/siri-remote-moode.service" /etc/systemd/system/siri-remote-moode.service
@@ -32,7 +60,11 @@ grep -q '^MOODE_DB_PATH=' /etc/default/siri-remote-moode || printf '%s\n' 'MOODE
 grep -q '^SIRI_TOUCH_X_SPLIT=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_X_SPLIT=3096' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_TOUCH_DEAD_ZONE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_DEAD_ZONE=60' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_TOUCH_MAX_AGE_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_MAX_AGE_SECONDS=1.5' >> /etc/default/siri-remote-moode
-grep -q '^SIRI_LIBRARY_NAVIGATION=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_LIBRARY_NAVIGATION=yes' >> /etc/default/siri-remote-moode
+if grep -q '^SIRI_LIBRARY_NAVIGATION=' /etc/default/siri-remote-moode; then
+    sed -i "s/^SIRI_LIBRARY_NAVIGATION=.*/SIRI_LIBRARY_NAVIGATION=$navigation/" /etc/default/siri-remote-moode
+else
+    printf 'SIRI_LIBRARY_NAVIGATION=%s\n' "$navigation" >> /etc/default/siri-remote-moode
+fi
 grep -q '^SIRI_SWIPE_MIN_DISTANCE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MIN_DISTANCE=350' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_SWIPE_MAX_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MAX_SECONDS=0.8' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_TOUCH_SEQUENCE_GAP_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_SEQUENCE_GAP_SECONDS=0.20' >> /etc/default/siri-remote-moode
@@ -88,4 +120,4 @@ systemctl enable siri-remote-moode.service
 # service but does not replace an already running daemon process.
 systemctl restart siri-remote-moode.service
 
-echo "Installed. Follow logs with: journalctl -u siri-remote-moode -f"
+echo "Installed (touchpad navigation: $navigation). Follow logs with: journalctl -u siri-remote-moode -f"
