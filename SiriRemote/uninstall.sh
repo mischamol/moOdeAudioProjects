@@ -18,6 +18,10 @@ case "${1:-}" in
     *) usage; exit 2 ;;
 esac
 
+if [ -f "$(dirname -- "$0")/moode-navigation/uninstall.sh" ]; then
+    sh "$(dirname -- "$0")/moode-navigation/uninstall.sh"
+fi
+
 # All removal targets are fixed paths created by install.sh. Pairing data and
 # any separate BlueZ configuration are deliberately left untouched.
 systemctl disable --now siri-remote-moode.service 2>/dev/null || true

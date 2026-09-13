@@ -140,6 +140,8 @@ TOUCH_EVENT_MARKER = 0x32
 GEN1_TOUCH_X_MIN = 2278
 GEN1_TOUCH_X_MAX = 3914
 GEN1_TOUCH_X_MID = (GEN1_TOUCH_X_MIN + GEN1_TOUCH_X_MAX) // 2
+GEN1_TOUCH_Y_MIN = 3022
+GEN1_TOUCH_Y_MAX = 4710
 
 ATT_ERRORS = {
     0x01: "invalid handle",
@@ -764,13 +766,17 @@ class MoodeWorker:
 
 
 class X11ClickWorker:
-    """Generate a click on moOde's local X11 display without extra packages."""
+    """Generate menu clicks and private navigation keys on moOde's X11 display."""
 
     def __init__(self, renderer_guard: RendererGuard | None = None) -> None:
         self.renderer_guard = renderer_guard
-        self.enabled = env("SIRI_MENU_SCREEN_CLICK", "no").lower() in (
+        self.menu_enabled = env("SIRI_MENU_SCREEN_CLICK", "no").lower() in (
             "1", "yes", "true", "on"
         )
+        self.navigation_enabled = env("SIRI_LIBRARY_NAVIGATION", "no").lower() in (
+            "1", "yes", "true", "on"
+        )
+        self.enabled = self.menu_enabled or self.navigation_enabled
         self.display_name = env("SIRI_X_DISPLAY", ":0")
         self.xauthority = env("SIRI_XAUTHORITY", "/home/pi/.Xauthority")
         self.playback_x = int(env("SIRI_PLAYBACK_CLICK_X", "220"), 0)
@@ -782,8 +788,8 @@ class X11ClickWorker:
             "cfg-table.php?cmd=get_cfg_system_value&param=current_view",
         )
         self.http_timeout = float(env("MOODE_HTTP_TIMEOUT", "4"))
-        self.commands: queue.Queue[bool | None] = queue.Queue(maxsize=4)
-        self.thread = threading.Thread(target=self._run, name="moode-x11-click", daemon=True)
+        self.commands: queue.Queue[str | None] = queue.Queue(maxsize=16)
+        self.thread = threading.Thread(target=self._run, name="moode-x11-control", daemon=True)
 
     def start(self) -> None:
         if not self.enabled:
@@ -799,12 +805,33 @@ class X11ClickWorker:
             pass
 
     def submit(self) -> None:
-        if not self.enabled:
+        if not self.menu_enabled:
             return
         try:
-            self.commands.put_nowait(True)
+            self.commands.put_nowait("menu")
         except queue.Full:
             LOG.error("X11 click queue full; dropping Menu/Back")
+
+    def submit_library_menu(self) -> None:
+        if not self.menu_enabled or not self.navigation_enabled:
+            return
+        try:
+            self.commands.put_nowait("library-menu")
+        except queue.Full:
+            LOG.error("X11 control queue full; dropping Library source menu")
+
+    def submit_navigation(self, action: str) -> None:
+        if not self.navigation_enabled:
+            return
+        if action not in (
+            "left", "right", "up", "down",
+            "select", "select-left", "select-right",
+        ):
+            raise ValueError(f"invalid library navigation action: {action}")
+        try:
+            self.commands.put_nowait("navigation:" + action)
+        except queue.Full:
+            LOG.error("X11 control queue full; dropping navigation %s", action)
 
     @staticmethod
     def _load_libraries() -> tuple[ctypes.CDLL, ctypes.CDLL]:
@@ -820,10 +847,15 @@ class X11ClickWorker:
         x11.XDisplayWidth.restype = ctypes.c_int
         x11.XDisplayHeight.argtypes = [ctypes.c_void_p, ctypes.c_int]
         x11.XDisplayHeight.restype = ctypes.c_int
+        x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        x11.XKeysymToKeycode.restype = ctypes.c_uint
         xtst.XTestFakeMotionEvent.argtypes = [
             ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_ulong
         ]
         xtst.XTestFakeButtonEvent.argtypes = [
+            ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong
+        ]
+        xtst.XTestFakeKeyEvent.argtypes = [
             ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong
         ]
         return x11, xtst
@@ -845,6 +877,39 @@ class X11ClickWorker:
             xtst.XTestFakeMotionEvent(display, 0, x, y, 0)
             xtst.XTestFakeButtonEvent(display, 1, True, 0)
             xtst.XTestFakeButtonEvent(display, 1, False, 50)
+            x11.XFlush(display)
+        finally:
+            x11.XCloseDisplay(display)
+
+    def _emit_navigation_key(self, action: str) -> None:
+        """Send a private Ctrl+Alt+Shift chord consumed by our moOde extension."""
+        keysyms = {
+            "left": ord("h"),
+            "right": ord("l"),
+            "up": ord("k"),
+            "down": ord("j"),
+            "select": 0xFF0D,
+            "select-left": ord("p"),
+            "select-right": ord("n"),
+            "activity": ord("a"),
+            "library-menu": ord("b"),
+        }
+        x11, xtst = self._load_libraries()
+        display = self._open_display(x11)
+        try:
+            keycodes = [
+                x11.XKeysymToKeycode(display, keysym)
+                for keysym in (0xFFE3, 0xFFE9, 0xFFE1, keysyms[action])
+            ]
+            if not all(keycodes):
+                raise RuntimeError(f"X11 keymap cannot encode navigation {action}")
+            control, alt, shift, key = keycodes
+            for modifier in (control, alt, shift):
+                xtst.XTestFakeKeyEvent(display, modifier, True, 0)
+            xtst.XTestFakeKeyEvent(display, key, True, 0)
+            xtst.XTestFakeKeyEvent(display, key, False, 0)
+            for modifier in (shift, alt, control):
+                xtst.XTestFakeKeyEvent(display, modifier, False, 0)
             x11.XFlush(display)
         finally:
             x11.XCloseDisplay(display)
@@ -921,20 +986,42 @@ class X11ClickWorker:
         )
 
     def _run(self) -> None:
-        self._ensure_playback()
+        if self.menu_enabled:
+            self._ensure_playback()
         while True:
             item = self.commands.get()
             if item is None:
                 return
-            if (
-                self.renderer_guard is not None
-                and not self.renderer_guard.allows("Menu/Back")
-            ):
-                continue
             try:
-                self._click()
+                if item == "menu":
+                    if (
+                        self.renderer_guard is not None
+                        and not self.renderer_guard.allows("Menu/Back")
+                    ):
+                        continue
+                    self._click()
+                    # Arm/cancel the browser-side idle return after moOde has
+                    # processed the synthetic click and changed currentView.
+                    self._emit_navigation_key("activity")
+                elif item == "library-menu":
+                    if (
+                        self.renderer_guard is not None
+                        and not self.renderer_guard.allows("Menu/Back")
+                    ):
+                        continue
+                    self._emit_navigation_key("library-menu")
+                    LOG.info("Menu/Back double-click -> Library source menu")
+                else:
+                    action = item.partition(":")[2]
+                    if (
+                        self.renderer_guard is not None
+                        and not self.renderer_guard.allows("Library navigation")
+                    ):
+                        continue
+                    self._emit_navigation_key(action)
+                    LOG.info("Touchpad library navigation -> %s", action)
             except (OSError, RuntimeError) as exc:
-                LOG.error("Menu/Back X11 click failed: %s", exc)
+                LOG.error("X11 control failed for %s: %s", item, exc)
 
 
 class X11Overlay:
@@ -1958,12 +2045,25 @@ class ButtonMapper:
         self.previous = 0
         self.lock = threading.Lock()
         self.last_touch_x: int | None = None
+        self.last_touch_y: int | None = None
         self.last_touch_time = 0.0
+        self.gesture_start_x: int | None = None
+        self.gesture_start_y: int | None = None
+        self.gesture_start_time = 0.0
+        self.gesture_sent = False
         self.touch_click_handled = False
         self.last_volume_press_time = 0.0
         self.touch_x_split = int(env("SIRI_TOUCH_X_SPLIT", str(GEN1_TOUCH_X_MID)), 0)
         self.touch_dead_zone = int(env("SIRI_TOUCH_DEAD_ZONE", "60"), 0)
         self.touch_max_age = float(env("SIRI_TOUCH_MAX_AGE_SECONDS", "1.5"))
+        self.swipe_min_distance = int(env("SIRI_SWIPE_MIN_DISTANCE", "350"), 0)
+        self.swipe_max_seconds = float(env("SIRI_SWIPE_MAX_SECONDS", "0.8"))
+        self.touch_sequence_gap = float(
+            env("SIRI_TOUCH_SEQUENCE_GAP_SECONDS", "0.20")
+        )
+        self.library_navigation = bool(
+            screen_clicker is not None and screen_clicker.navigation_enabled
+        )
         self.volume_repeat_recovery = float(
             env("SIRI_VOLUME_REPEAT_RECOVERY_SECONDS", "0.75")
         )
@@ -1980,6 +2080,12 @@ class ButtonMapper:
             raise ValueError("SIRI_TOUCH_DEAD_ZONE cannot be negative")
         if self.touch_max_age <= 0:
             raise ValueError("SIRI_TOUCH_MAX_AGE_SECONDS must be greater than zero")
+        if self.swipe_min_distance <= 0:
+            raise ValueError("SIRI_SWIPE_MIN_DISTANCE must be greater than zero")
+        if self.swipe_max_seconds <= 0:
+            raise ValueError("SIRI_SWIPE_MAX_SECONDS must be greater than zero")
+        if self.touch_sequence_gap <= 0:
+            raise ValueError("SIRI_TOUCH_SEQUENCE_GAP_SECONDS must be greater than zero")
         if self.volume_repeat_recovery <= 0:
             raise ValueError(
                 "SIRI_VOLUME_REPEAT_RECOVERY_SECONDS must be greater than zero"
@@ -2004,6 +2110,12 @@ class ButtonMapper:
         self.shutdown_action = shutdown_action or self._run_shutdown
         self.home_timer: threading.Timer | None = None
         self.home_fired = False
+        self.menu_double_click_seconds = float(
+            env("SIRI_MENU_DOUBLE_CLICK_SECONDS", "0.65")
+        )
+        if self.menu_double_click_seconds <= 0:
+            raise ValueError("SIRI_MENU_DOUBLE_CLICK_SECONDS must be greater than zero")
+        self.menu_timer: threading.Timer | None = None
         self.mic_mask = int(env("SIRI_MIC_BUTTON_MASK", "0x10"), 0)
         if self.mic_mask <= 0 or self.mic_mask > 0xFF:
             raise ValueError("SIRI_MIC_BUTTON_MASK must be between 0x01 and 0xff")
@@ -2021,7 +2133,12 @@ class ButtonMapper:
         with self.lock:
             self.previous = 0
             self.last_touch_x = None
+            self.last_touch_y = None
             self.last_touch_time = 0.0
+            self.gesture_start_x = None
+            self.gesture_start_y = None
+            self.gesture_start_time = 0.0
+            self.gesture_sent = False
             self.touch_click_handled = False
             self.last_volume_press_time = 0.0
             self.reconnect_duplicate_guard_until = 0.0
@@ -2029,6 +2146,9 @@ class ButtonMapper:
             if self.home_timer is not None:
                 self.home_timer.cancel()
                 self.home_timer = None
+            if self.menu_timer is not None:
+                self.menu_timer.cancel()
+                self.menu_timer = None
         if self.overlay_worker is not None:
             self.overlay_worker.cancel("shutdown")
 
@@ -2081,17 +2201,85 @@ class ButtonMapper:
             if self.overlay_worker is not None:
                 self.overlay_worker.cancel("shutdown")
 
+    def _menu_single_elapsed(self) -> None:
+        with self.lock:
+            if self.menu_timer is None:
+                return
+            self.menu_timer = None
+        if self.screen_clicker is not None:
+            self.screen_clicker.submit()
+
+    def _handle_menu_press(self) -> None:
+        with self.lock:
+            if self.menu_timer is not None:
+                timer = self.menu_timer
+                self.menu_timer = None
+                double_click = True
+            else:
+                timer = threading.Timer(
+                    self.menu_double_click_seconds,
+                    self._menu_single_elapsed,
+                )
+                timer.daemon = True
+                self.menu_timer = timer
+                double_click = False
+        if double_click:
+            timer.cancel()
+            if self.screen_clicker is not None:
+                self.screen_clicker.submit_library_menu()
+        else:
+            timer.start()
+
     @staticmethod
-    def decode_touch_x(payload: bytes) -> int | None:
-        """Decode the first-finger X coordinate from a Gen-1 ATT report."""
+    def decode_touch(payload: bytes) -> tuple[int, int, int] | None:
+        """Decode first-finger X, Y and pressure from a Gen-1 ATT report."""
         if len(payload) < 13 or payload[2] != TOUCH_EVENT_MARKER:
             return None
         x = payload[6] | ((payload[7] & 0x0F) << 8)
+        y = ((payload[7] & 0xF0) >> 4) | (payload[8] << 4)
         # The remote sends a wrapping signed 12-bit value. Normalizing the
-        # lower half produces the 2278..3914 range used by hid-siriremote.
+        # lower half produces the ranges used by hid-siriremote.
         if x < 0x800:
             x += 0x1000
-        return x
+        if y < 0x800:
+            y += 0x1000
+        return x, y, payload[10]
+
+    @classmethod
+    def decode_touch_x(cls, payload: bytes) -> int | None:
+        """Compatibility wrapper used by the existing click-side mapping."""
+        touch = cls.decode_touch(payload)
+        return None if touch is None else touch[0]
+
+    def _touch_gesture_locked(
+        self, touch: tuple[int, int, int], now: float
+    ) -> str | None:
+        x, y, pressure = touch
+        if pressure == 0:
+            self.gesture_start_x = None
+            self.gesture_start_y = None
+            self.gesture_sent = False
+            return None
+        if (
+            self.gesture_start_x is None
+            or now - self.last_touch_time > self.touch_sequence_gap
+        ):
+            self.gesture_start_x = x
+            self.gesture_start_y = y
+            self.gesture_start_time = now
+            self.gesture_sent = False
+            return None
+        if self.gesture_sent or now - self.gesture_start_time > self.swipe_max_seconds:
+            return None
+        dx = x - self.gesture_start_x
+        dy = y - self.gesture_start_y
+        if max(abs(dx), abs(dy)) < self.swipe_min_distance:
+            return None
+        self.gesture_sent = True
+        if abs(dx) >= abs(dy):
+            return "right" if dx > 0 else "left"
+        # Raw Gen-1 Y grows from the lower edge towards the upper edge.
+        return "up" if dy > 0 else "down"
 
     def _touch_click_action_locked(
         self, buttons: int, now: float
@@ -2109,6 +2297,11 @@ class ButtonMapper:
 
         self.touch_click_handled = True
         offset = self.last_touch_x - self.touch_x_split
+        if self.library_navigation:
+            if abs(offset) <= self.touch_dead_zone:
+                return "Touchpad center / Select", "navigation:select"
+            side = "left" if offset < 0 else "right"
+            return f"Touchpad {side} / Select", f"navigation:select-{side}"
         if abs(offset) <= self.touch_dead_zone:
             LOG.info(
                 "Touchpad center click ignored: x=%d, split=%d, dead-zone=%d",
@@ -2130,19 +2323,29 @@ class ButtonMapper:
             return
         buttons = payload[1]
         now = time.monotonic()
-        touch_x = self.decode_touch_x(payload)
+        touch = self.decode_touch(payload)
         with self.lock:
             recovered_volume_press = False
-            if touch_x is not None:
+            gesture_action = None
+            if touch is not None:
+                touch_x, touch_y, pressure = touch
+                gesture_action = self._touch_gesture_locked(touch, now)
                 self.last_touch_x = touch_x
+                self.last_touch_y = touch_y
                 self.last_touch_time = now
                 LOG.debug(
-                    "Touch report: x=%d split=%d buttons=0x%02x raw=%s",
+                    "Touch report: x=%d y=%d pressure=%d split=%d buttons=0x%02x raw=%s",
                     touch_x,
+                    touch_y,
+                    pressure,
                     self.touch_x_split,
                     buttons,
                     payload.hex(" "),
                 )
+            elif buttons == 0:
+                self.gesture_start_x = None
+                self.gesture_start_y = None
+                self.gesture_sent = False
             elif buttons == self.previous:
                 # ATT notifications have no application-level acknowledgement.
                 # If a volume release is lost, the next identical press would
@@ -2184,8 +2387,14 @@ class ButtonMapper:
                 self.last_volume_press_time = now
             touch_action = self._touch_click_action_locked(buttons, now)
 
+        if gesture_action is not None and self.library_navigation:
+            self.screen_clicker.submit_navigation(gesture_action)
         if touch_action is not None:
-            self.worker.submit(*touch_action)
+            name, command = touch_action
+            if command.startswith("navigation:"):
+                self.screen_clicker.submit_navigation(command.partition(":")[2])
+            else:
+                self.worker.submit(name, command)
         if newly_pressed & self.mic_mask and self.battery_display_action is not None:
             # Never perform an ATT read here. This callback runs while an input
             # notification is being dispatched; nested ATT I/O can consume the
@@ -2194,7 +2403,7 @@ class ButtonMapper:
             self.battery_display_action()
         if newly_pressed & BUTTON_MENU:
             if self.screen_clicker is not None:
-                self.screen_clicker.submit()
+                self._handle_menu_press()
             else:
                 name, command = self.mapping[BUTTON_MENU]
                 if command:
