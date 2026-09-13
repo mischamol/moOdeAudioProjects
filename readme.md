@@ -1,5 +1,5 @@
 # moOde audioplayer Projects
-Collection of various moOde audioplayer projects I did over the years. Some are recent, some haven’t been maintained over the years. Use them if you like, ignore them if you don’t.
+Collection of various moOde audioplayer projects I did over the years. Some are recent, some haven’t been maintained in a while. Use them if you like, ignore them if you don’t.
 
 <img width="720" height="1280" alt="moode-current-screen-volume-overlay" src="SiriRemote/assets/moode-volume-overlay.png" />
 <br><sub>Moode showing the volume overlay after receiving a volume change from the Siri remote</sub><br><br>

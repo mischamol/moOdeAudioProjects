@@ -248,19 +248,31 @@ sudo sh ./install.sh 70:48:0F:F2:65:99
 
 Replace the sample MAC address if necessary.
 
+Touchpad navigation is installed by default. To install only the remote daemon
+and retain the original moOde WebUI, use:
+
+```sh
+sudo sh ./install.sh -nonavigation 70:48:0F:F2:65:99
+```
+
+The option may appear before or after the MAC address. It also removes a
+navigation integration left by an earlier installation and sets
+`SIRI_LIBRARY_NAVIGATION=no`. Rerun the command without `-nonavigation` to
+enable navigation again.
+
 The installer creates or updates:
 
 ```text
 /usr/local/sbin/siri_remote_moode.py
 /etc/systemd/system/siri-remote-moode.service
 /etc/default/siri-remote-moode
-/var/www/js/siri-remote-navigation.js
 ```
 
-It also adds one clearly marked script include to `/var/www/header.php`, stores
-a backup below `/var/backups/siri-remote-moode-navigation/`, reloads the local
-display, and enables and starts the service. Rerun the same installer after a
-moOde update to restore this small WebUI integration.
+With navigation enabled, it also adds one clearly marked script include to
+`/var/www/header.php`, installs `/var/www/js/siri-remote-navigation.js`, stores a backup below
+`/var/backups/siri-remote-moode-navigation/`, reloads the local display, and
+enables and starts the service. Rerun the same installer after a moOde update
+to restore this small WebUI integration.
 
 ## 7. Perform the first connection test
 
@@ -353,6 +365,12 @@ moOde's old active background is hidden so only one selection is visible. After
 activation, the temporary focus is cleared and moOde's normal active marker is
 shown again. In Playback, clicking the left or right touchpad half retains the
 Previous/Next behavior.
+
+<p>
+  <img width="350" alt="Touchpad focus inside the Album view" src="assets/siri-navigation-album.png" />
+  <img width="350" alt="Touchpad selection in the Library source chooser" src="assets/siri-navigation-library-source.png" />
+</p>
+<sub>Left: directional touchpad focus in Album. Right: source selection after a double press on Menu/Back.</sub>
 
 The first-generation touch area is decoded in both axes. Swipe recognition is
 configured with `SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_MAX_SECONDS`, and
@@ -530,32 +548,6 @@ startup, the Python process now uses Linux's official Bluetooth Management API
 to load a 2000 ms timeout for this remote only. This is an in-memory controller
 setting: no kernel, BlueZ, or moOde file is modified. Set
 `SIRI_LE_SUPERVISION_TIMEOUT_MS=0` to retain the kernel default.
-
-### Intermittent missing or delayed buttons
-
-A button is recoverable in userspace only after the Bluetooth controller has
-received its ATT notification. A simultaneous daemon log and HCI capture on the
-tested Raspberry Pi showed that some missing presses produced no HCI/ATT packet
-at all. Other presses made the remote advertise, but the link failed during
-feature exchange or encryption with `Connection Failed to be Established
-(0x3e)` or `Connection Timeout (0x08)`. Those events happen below the Python
-daemon; retrying a moOde command cannot recover them.
-
-Use `SIRI_DEBUG=yes` and compare the journal with a privileged `btmon` capture
-when diagnosing this distinction. On the tested installation, five presses at
-approximately 20–30 cm from the Pi were received correctly, while presses at
-the normal operating position were intermittent. Turning Wi-Fi off did not
-remove the failures. Increasing one connection attempt from four to 30 seconds
-and reading the battery every five seconds as a keepalive also failed to make
-the radio link reliable, so neither workaround is enabled in the package.
-
-If close-range operation is reliable, improve radio conditions instead of
-adding command retries: keep the Pi antenna area clear of metal and display
-cabling, increase separation from USB 3 devices with an extension cable, move
-the Pi, or use a standard external Bluetooth adapter placed away from the
-enclosure. Disabling Wi-Fi before boot is not recommended as a workaround: on
-the tested moOde configuration it prevented MPD and the local Chromium UI from
-finishing startup until Wi-Fi was enabled again.
 
 ### Device or resource busy
 
