@@ -86,6 +86,12 @@ class ButtonMapperTests(unittest.TestCase):
             "SIRI_TOUCH_X_SPLIT": "3096",
             "SIRI_TOUCH_DEAD_ZONE": "60",
             "SIRI_TOUCH_MAX_AGE_SECONDS": "1.5",
+            "SIRI_SWIPE_MIN_DISTANCE": "350",
+            "SIRI_SWIPE_STEP_DISTANCE": "450",
+            "SIRI_SWIPE_MAX_STEPS": "3",
+            "SIRI_SWIPE_FLICK_SECONDS": "0.18",
+            "SIRI_SWIPE_MAX_SECONDS": "0.8",
+            "SIRI_TOUCH_SEQUENCE_GAP_SECONDS": "0.20",
             "SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS": "2",
             "MOODE_PREVIOUS_CMD": "previous",
             "MOODE_NEXT_CMD": "next",
@@ -155,7 +161,7 @@ class ButtonMapperTests(unittest.TestCase):
         self.notify(touch_report(3600))
         self.assertEqual(self.worker.actions, [])
 
-    def test_horizontal_and_vertical_swipes_are_sent_to_library_navigation(self):
+    def test_fast_short_swipes_remain_one_precise_step(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
@@ -170,6 +176,43 @@ class ButtonMapperTests(unittest.TestCase):
             mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3020, y=3900))
         self.assertEqual(clicker.navigation_actions, ["right", "up"])
         self.assertEqual(self.worker.actions, [])
+        mapper.reset()
+
+    def test_fast_long_flick_adds_one_bounded_step(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        with mock.patch.object(
+            remote.time, "monotonic", side_effect=(150.0, 150.1),
+        ):
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=5000))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3010, y=4100))
+        self.assertEqual(
+            clicker.navigation_actions,
+            ["down", "continue-down", "continue-down"],
+        )
+        mapper.reset()
+
+    def test_long_swipe_moves_progressively_and_stops_at_three_steps(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        with mock.patch.object(
+            remote.time, "monotonic",
+            side_effect=(200.0, 200.19, 200.29, 200.39, 200.49, 200.59),
+        ):
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=5000))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3020, y=4600))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3010, y=4100))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3600))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2990, y=3100))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2980, y=2500))
+        self.assertEqual(
+            clicker.navigation_actions,
+            ["down", "continue-down", "continue-down"],
+        )
         mapper.reset()
 
     def test_physical_click_routes_to_selection_when_navigation_is_enabled(self):
@@ -471,7 +514,7 @@ class X11ClickWorkerTests(unittest.TestCase):
         click.assert_not_called()
         self.assertEqual(guard.actions, ["Menu/Back"])
 
-    def test_navigation_emits_private_key_when_renderer_allows_it(self):
+    def test_navigation_and_continuation_emit_private_keys_when_renderer_allows_it(self):
         guard = FakeRendererGuard(True)
         with mock.patch.dict(
             os.environ,
@@ -483,11 +526,15 @@ class X11ClickWorkerTests(unittest.TestCase):
                 mock.patch.object(clicker, "_emit_navigation_key") as emit:
             clicker.start()
             clicker.submit_navigation("right")
+            clicker.submit_navigation("continue-right")
             clicker.stop()
             clicker.thread.join(1)
         ensure_playback.assert_not_called()
-        emit.assert_called_once_with("right")
-        self.assertEqual(guard.actions, ["Library navigation"])
+        self.assertEqual(
+            emit.call_args_list,
+            [mock.call("right"), mock.call("continue-right")],
+        )
+        self.assertEqual(guard.actions, ["Library navigation", "Library navigation"])
 
     def test_double_menu_emits_library_source_key(self):
         guard = FakeRendererGuard(True)

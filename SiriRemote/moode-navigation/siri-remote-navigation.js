@@ -11,8 +11,11 @@
         '#viewswitch .playlist-view-btn',
     ].join(', ');
     const PLAYBACK_RETURN_MS = 5000;
+    const CONTINUATION_DELAY_MS = 85;
     let selected = null;
     let playbackReturnTimer = null;
+    let continuationTimer = null;
+    let continuationQueue = [];
 
     const style = document.createElement('style');
     style.textContent = `
@@ -21,12 +24,19 @@
             outline-offset: -4px;
             border-radius: .35rem;
             background-color: var(--accentxta) !important;
+            scroll-margin-block: 3.25rem 8rem;
         }
         :root.siri-remote-navigating #lib-content li.active:not(.${SELECTED_CLASS}),
         :root.siri-remote-navigating .albumslist .active:not(.${SELECTED_CLASS}),
         :root.siri-remote-navigating #radio-covers li.active:not(.${SELECTED_CLASS}),
         :root.siri-remote-navigating #playlist-covers li.active:not(.${SELECTED_CLASS}) {
             background-color: transparent !important;
+            color: inherit !important;
+        }
+        :root.siri-remote-navigating #viewswitch .btn.active:not(.${SELECTED_CLASS}),
+        :root.siri-remote-navigating #viewswitch .btn.btn-primary:not(.${SELECTED_CLASS}) {
+            background: transparent !important;
+            box-shadow: none !important;
             color: inherit !important;
         }
     `;
@@ -79,10 +89,14 @@
         selected = element;
         selected.classList.add(SELECTED_CLASS);
         document.documentElement.classList.add('siri-remote-navigating');
-        selected.scrollIntoView({block: 'center', inline: 'center', behavior: 'smooth'});
+        // Re-centering every item with smooth scrolling queues overlapping
+        // animations during a multi-step swipe. "nearest" leaves visible
+        // items still and scrolls only the minimum amount at an edge.
+        selected.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'auto'});
     }
 
     function clearSelection() {
+        cancelContinuations();
         if (selected) {
             selected.classList.remove(SELECTED_CLASS);
             selected = null;
@@ -168,20 +182,53 @@
         return active || items[0] || null;
     }
 
-    function move(direction) {
+    function cancelContinuations() {
+        if (continuationTimer !== null) {
+            window.clearTimeout(continuationTimer);
+            continuationTimer = null;
+        }
+        continuationQueue = [];
+    }
+
+    function runContinuation() {
+        continuationTimer = null;
+        const direction = continuationQueue.shift();
+        if (direction) {
+            move(direction, true);
+        }
+        if (continuationQueue.length) {
+            continuationTimer = window.setTimeout(
+                runContinuation, CONTINUATION_DELAY_MS,
+            );
+        }
+    }
+
+    function queueContinuation(direction) {
+        continuationQueue.push(direction);
+        if (continuationTimer === null) {
+            continuationTimer = window.setTimeout(
+                runContinuation, CONTINUATION_DELAY_MS,
+            );
+        }
+        return true;
+    }
+
+    function move(direction, continuation) {
         const items = candidates();
         const current = startingItem(items);
         if (!current) {
             return false;
         }
         if (current.matches(SOURCE_SELECTOR)) {
+            // A long/flick gesture remains one precise step in the compact
+            // Library source chooser; continuation events are only for grids.
+            if (continuation) {
+                schedulePlaybackReturn();
+                return true;
+            }
             if (direction === 'left') direction = 'up';
             if (direction === 'right') direction = 'down';
         }
-        if (!selected) {
-            mark(current);
-        }
-
         const origin = center(current);
         const options = items.filter((item) => item !== current).map((item) => {
             const point = center(item);
@@ -248,18 +295,30 @@
         if (!event.ctrlKey || !event.altKey || !event.shiftKey) return;
         let handled = false;
         const key = event.key.toLowerCase();
-        if (key === 'h') handled = move('left');
-        else if (key === 'l') handled = move('right');
-        else if (key === 'k') handled = move('up');
-        else if (key === 'j') handled = move('down');
-        else if (event.key === 'Enter') handled = activateSelected(null);
-        else if (key === 'p') handled = activateSelected('left');
-        else if (key === 'n') handled = activateSelected('right');
+        if (key === 'h' || key === 'l' || key === 'k' || key === 'j') {
+            cancelContinuations();
+            const directions = {h: 'left', l: 'right', k: 'up', j: 'down'};
+            handled = move(directions[key], false);
+        }
+        else if (key === 'q') handled = queueContinuation('left');
+        else if (key === 'r') handled = queueContinuation('right');
+        else if (key === 'w') handled = queueContinuation('up');
+        else if (key === 's') handled = queueContinuation('down');
+        else if (event.key === 'Enter') {
+            cancelContinuations();
+            handled = activateSelected(null);
+        }
+        else if (key === 'p' || key === 'n') {
+            cancelContinuations();
+            handled = activateSelected(key === 'p' ? 'left' : 'right');
+        }
         else if (key === 'a') {
+            cancelContinuations();
             scheduleAfterViewChange();
             handled = true;
         }
         else if (key === 'b') {
+            cancelContinuations();
             openSourcePicker();
             handled = true;
         }
@@ -269,6 +328,7 @@
     }, true);
 
     document.addEventListener('pointerdown', function () {
+        cancelContinuations();
         if (!isPlayback()) {
             schedulePlaybackReturn();
         }

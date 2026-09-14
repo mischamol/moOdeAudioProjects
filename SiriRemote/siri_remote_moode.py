@@ -825,6 +825,7 @@ class X11ClickWorker:
             return
         if action not in (
             "left", "right", "up", "down",
+            "continue-left", "continue-right", "continue-up", "continue-down",
             "select", "select-left", "select-right",
         ):
             raise ValueError(f"invalid library navigation action: {action}")
@@ -888,6 +889,10 @@ class X11ClickWorker:
             "right": ord("l"),
             "up": ord("k"),
             "down": ord("j"),
+            "continue-left": ord("q"),
+            "continue-right": ord("r"),
+            "continue-up": ord("w"),
+            "continue-down": ord("s"),
             "select": 0xFF0D,
             "select-left": ord("p"),
             "select-right": ord("n"),
@@ -2050,13 +2055,17 @@ class ButtonMapper:
         self.gesture_start_x: int | None = None
         self.gesture_start_y: int | None = None
         self.gesture_start_time = 0.0
-        self.gesture_sent = False
+        self.gesture_direction: str | None = None
+        self.gesture_steps_sent = 0
         self.touch_click_handled = False
         self.last_volume_press_time = 0.0
         self.touch_x_split = int(env("SIRI_TOUCH_X_SPLIT", str(GEN1_TOUCH_X_MID)), 0)
         self.touch_dead_zone = int(env("SIRI_TOUCH_DEAD_ZONE", "60"), 0)
         self.touch_max_age = float(env("SIRI_TOUCH_MAX_AGE_SECONDS", "1.5"))
         self.swipe_min_distance = int(env("SIRI_SWIPE_MIN_DISTANCE", "350"), 0)
+        self.swipe_step_distance = int(env("SIRI_SWIPE_STEP_DISTANCE", "450"), 0)
+        self.swipe_max_steps = int(env("SIRI_SWIPE_MAX_STEPS", "3"), 0)
+        self.swipe_flick_seconds = float(env("SIRI_SWIPE_FLICK_SECONDS", "0.18"))
         self.swipe_max_seconds = float(env("SIRI_SWIPE_MAX_SECONDS", "0.8"))
         self.touch_sequence_gap = float(
             env("SIRI_TOUCH_SEQUENCE_GAP_SECONDS", "0.20")
@@ -2082,6 +2091,12 @@ class ButtonMapper:
             raise ValueError("SIRI_TOUCH_MAX_AGE_SECONDS must be greater than zero")
         if self.swipe_min_distance <= 0:
             raise ValueError("SIRI_SWIPE_MIN_DISTANCE must be greater than zero")
+        if self.swipe_step_distance <= 0:
+            raise ValueError("SIRI_SWIPE_STEP_DISTANCE must be greater than zero")
+        if not 1 <= self.swipe_max_steps <= 8:
+            raise ValueError("SIRI_SWIPE_MAX_STEPS must be between 1 and 8")
+        if self.swipe_flick_seconds < 0:
+            raise ValueError("SIRI_SWIPE_FLICK_SECONDS cannot be negative")
         if self.swipe_max_seconds <= 0:
             raise ValueError("SIRI_SWIPE_MAX_SECONDS must be greater than zero")
         if self.touch_sequence_gap <= 0:
@@ -2138,7 +2153,8 @@ class ButtonMapper:
             self.gesture_start_x = None
             self.gesture_start_y = None
             self.gesture_start_time = 0.0
-            self.gesture_sent = False
+            self.gesture_direction = None
+            self.gesture_steps_sent = 0
             self.touch_click_handled = False
             self.last_volume_press_time = 0.0
             self.reconnect_duplicate_guard_until = 0.0
@@ -2253,13 +2269,14 @@ class ButtonMapper:
 
     def _touch_gesture_locked(
         self, touch: tuple[int, int, int], now: float
-    ) -> str | None:
+    ) -> list[str]:
         x, y, pressure = touch
         if pressure == 0:
             self.gesture_start_x = None
             self.gesture_start_y = None
-            self.gesture_sent = False
-            return None
+            self.gesture_direction = None
+            self.gesture_steps_sent = 0
+            return []
         if (
             self.gesture_start_x is None
             or now - self.last_touch_time > self.touch_sequence_gap
@@ -2267,19 +2284,55 @@ class ButtonMapper:
             self.gesture_start_x = x
             self.gesture_start_y = y
             self.gesture_start_time = now
-            self.gesture_sent = False
-            return None
-        if self.gesture_sent or now - self.gesture_start_time > self.swipe_max_seconds:
-            return None
+            self.gesture_direction = None
+            self.gesture_steps_sent = 0
+            return []
+        elapsed = now - self.gesture_start_time
+        if elapsed > self.swipe_max_seconds:
+            return []
         dx = x - self.gesture_start_x
         dy = y - self.gesture_start_y
-        if max(abs(dx), abs(dy)) < self.swipe_min_distance:
-            return None
-        self.gesture_sent = True
-        if abs(dx) >= abs(dy):
-            return "right" if dx > 0 else "left"
-        # Raw Gen-1 Y grows from the lower edge towards the upper edge.
-        return "up" if dy > 0 else "down"
+        if self.gesture_direction is None:
+            if max(abs(dx), abs(dy)) < self.swipe_min_distance:
+                return []
+            if abs(dx) >= abs(dy):
+                self.gesture_direction = "right" if dx > 0 else "left"
+            else:
+                # Raw Gen-1 Y grows from the lower edge towards the upper edge.
+                self.gesture_direction = "up" if dy > 0 else "down"
+
+        if self.gesture_direction == "right":
+            distance = dx
+        elif self.gesture_direction == "left":
+            distance = -dx
+        elif self.gesture_direction == "up":
+            distance = dy
+        else:
+            distance = -dy
+        if distance < self.swipe_min_distance:
+            return []
+
+        target_steps = 1 + (
+            distance - self.swipe_min_distance
+        ) // self.swipe_step_distance
+        # Keep the entire first distance band precise. Acceleration only
+        # applies after the gesture already qualifies for at least two steps,
+        # otherwise an ordinary quick one-item swipe is almost impossible.
+        if target_steps >= 2 and elapsed <= self.swipe_flick_seconds:
+            target_steps += 1
+        target_steps = min(self.swipe_max_steps, target_steps)
+        new_steps = target_steps - self.gesture_steps_sent
+        if new_steps <= 0:
+            return []
+
+        first_action = self.gesture_direction
+        continuation = "continue-" + self.gesture_direction
+        actions = [
+            first_action if self.gesture_steps_sent == 0 and index == 0 else continuation
+            for index in range(new_steps)
+        ]
+        self.gesture_steps_sent = target_steps
+        return actions
 
     def _touch_click_action_locked(
         self, buttons: int, now: float
@@ -2326,10 +2379,10 @@ class ButtonMapper:
         touch = self.decode_touch(payload)
         with self.lock:
             recovered_volume_press = False
-            gesture_action = None
+            gesture_actions = []
             if touch is not None:
                 touch_x, touch_y, pressure = touch
-                gesture_action = self._touch_gesture_locked(touch, now)
+                gesture_actions = self._touch_gesture_locked(touch, now)
                 self.last_touch_x = touch_x
                 self.last_touch_y = touch_y
                 self.last_touch_time = now
@@ -2345,7 +2398,8 @@ class ButtonMapper:
             elif buttons == 0:
                 self.gesture_start_x = None
                 self.gesture_start_y = None
-                self.gesture_sent = False
+                self.gesture_direction = None
+                self.gesture_steps_sent = 0
             elif buttons == self.previous:
                 # ATT notifications have no application-level acknowledgement.
                 # If a volume release is lost, the next identical press would
@@ -2387,8 +2441,9 @@ class ButtonMapper:
                 self.last_volume_press_time = now
             touch_action = self._touch_click_action_locked(buttons, now)
 
-        if gesture_action is not None and self.library_navigation:
-            self.screen_clicker.submit_navigation(gesture_action)
+        if gesture_actions and self.library_navigation:
+            for gesture_action in gesture_actions:
+                self.screen_clicker.submit_navigation(gesture_action)
         if touch_action is not None:
             name, command = touch_action
             if command.startswith("navigation:"):
