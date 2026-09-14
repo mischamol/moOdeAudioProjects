@@ -374,7 +374,7 @@ Previous/Next behavior.
 
 The first-generation touch area is decoded in both axes. The complete short
 distance band always moves exactly one item, even when performed quickly. A
-longer swipe progressively moves up to four items; once it already qualifies
+longer swipe progressively moves up to three items; once it already qualifies
 for at least two steps, a fast flick adds one bounded acceleration step. The
 compact Library source chooser always moves only one source per gesture. No
 movement continues after the finger is lifted. Configure this behavior with `SIRI_SWIPE_MIN_DISTANCE`,

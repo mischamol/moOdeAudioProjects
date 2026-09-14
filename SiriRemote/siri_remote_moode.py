@@ -2064,7 +2064,7 @@ class ButtonMapper:
         self.touch_max_age = float(env("SIRI_TOUCH_MAX_AGE_SECONDS", "1.5"))
         self.swipe_min_distance = int(env("SIRI_SWIPE_MIN_DISTANCE", "350"), 0)
         self.swipe_step_distance = int(env("SIRI_SWIPE_STEP_DISTANCE", "450"), 0)
-        self.swipe_max_steps = int(env("SIRI_SWIPE_MAX_STEPS", "4"), 0)
+        self.swipe_max_steps = int(env("SIRI_SWIPE_MAX_STEPS", "3"), 0)
         self.swipe_flick_seconds = float(env("SIRI_SWIPE_FLICK_SECONDS", "0.18"))
         self.swipe_max_seconds = float(env("SIRI_SWIPE_MAX_SECONDS", "0.8"))
         self.touch_sequence_gap = float(

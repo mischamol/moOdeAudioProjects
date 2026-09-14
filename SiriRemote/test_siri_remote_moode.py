@@ -88,7 +88,7 @@ class ButtonMapperTests(unittest.TestCase):
             "SIRI_TOUCH_MAX_AGE_SECONDS": "1.5",
             "SIRI_SWIPE_MIN_DISTANCE": "350",
             "SIRI_SWIPE_STEP_DISTANCE": "450",
-            "SIRI_SWIPE_MAX_STEPS": "4",
+            "SIRI_SWIPE_MAX_STEPS": "3",
             "SIRI_SWIPE_FLICK_SECONDS": "0.18",
             "SIRI_SWIPE_MAX_SECONDS": "0.8",
             "SIRI_TOUCH_SEQUENCE_GAP_SECONDS": "0.20",
@@ -194,7 +194,7 @@ class ButtonMapperTests(unittest.TestCase):
         )
         mapper.reset()
 
-    def test_long_swipe_moves_progressively_and_stops_at_four_steps(self):
+    def test_long_swipe_moves_progressively_and_stops_at_three_steps(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
@@ -211,7 +211,7 @@ class ButtonMapperTests(unittest.TestCase):
             mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2980, y=2500))
         self.assertEqual(
             clicker.navigation_actions,
-            ["down", "continue-down", "continue-down", "continue-down"],
+            ["down", "continue-down", "continue-down"],
         )
         mapper.reset()
 
