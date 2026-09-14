@@ -29,6 +29,12 @@
             background-color: transparent !important;
             color: inherit !important;
         }
+        :root.siri-remote-navigating #viewswitch .btn.active:not(.${SELECTED_CLASS}),
+        :root.siri-remote-navigating #viewswitch .btn.btn-primary:not(.${SELECTED_CLASS}) {
+            background: transparent !important;
+            box-shadow: none !important;
+            color: inherit !important;
+        }
     `;
     document.head.appendChild(style);
 
@@ -168,13 +174,19 @@
         return active || items[0] || null;
     }
 
-    function move(direction) {
+    function move(direction, continuation) {
         const items = candidates();
         const current = startingItem(items);
         if (!current) {
             return false;
         }
         if (current.matches(SOURCE_SELECTOR)) {
+            // A long/flick gesture remains one precise step in the compact
+            // Library source chooser; continuation events are only for grids.
+            if (continuation) {
+                schedulePlaybackReturn();
+                return true;
+            }
             if (direction === 'left') direction = 'up';
             if (direction === 'right') direction = 'down';
         }
@@ -248,10 +260,14 @@
         if (!event.ctrlKey || !event.altKey || !event.shiftKey) return;
         let handled = false;
         const key = event.key.toLowerCase();
-        if (key === 'h') handled = move('left');
-        else if (key === 'l') handled = move('right');
-        else if (key === 'k') handled = move('up');
-        else if (key === 'j') handled = move('down');
+        if (key === 'h') handled = move('left', false);
+        else if (key === 'l') handled = move('right', false);
+        else if (key === 'k') handled = move('up', false);
+        else if (key === 'j') handled = move('down', false);
+        else if (key === 'q') handled = move('left', true);
+        else if (key === 'r') handled = move('right', true);
+        else if (key === 'w') handled = move('up', true);
+        else if (key === 's') handled = move('down', true);
         else if (event.key === 'Enter') handled = activateSelected(null);
         else if (key === 'p') handled = activateSelected('left');
         else if (key === 'n') handled = activateSelected('right');

@@ -372,8 +372,14 @@ Previous/Next behavior.
 </p>
 <sub>Left: directional touchpad focus in Album. Right: source selection after a double press on Menu/Back.</sub>
 
-The first-generation touch area is decoded in both axes. Swipe recognition is
-configured with `SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_MAX_SECONDS`, and
+The first-generation touch area is decoded in both axes. The complete short
+distance band always moves exactly one item, even when performed quickly. A
+longer swipe progressively moves up to four items; once it already qualifies
+for at least two steps, a fast flick adds one bounded acceleration step. The
+compact Library source chooser always moves only one source per gesture. No
+movement continues after the finger is lifted. Configure this behavior with `SIRI_SWIPE_MIN_DISTANCE`,
+`SIRI_SWIPE_STEP_DISTANCE`, `SIRI_SWIPE_MAX_STEPS`,
+`SIRI_SWIPE_FLICK_SECONDS`, `SIRI_SWIPE_MAX_SECONDS`, and
 `SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. The click split remains configurable with
 `SIRI_TOUCH_X_SPLIT`, `SIRI_TOUCH_DEAD_ZONE`, and
 `SIRI_TOUCH_MAX_AGE_SECONDS`.
