@@ -66,5 +66,5 @@ This installer intentionally targets portrait mode. For landscape mode,
 `/boot/firmware/cmdline.txt` also needs an appropriate DSI rotation setting,
 which is outside the scope of these scripts.
 
-<img width="640" height="481" alt="image" src="https://github.com/user-attachments/assets/325c2474-fea0-4634-8129-d9dd1f1c187c" />
+<img width="640" height="481" alt="image" src="https://github.com/mischamol/moOdeAudioProjects/blob/main/SiriRemote/assets/moode-volume-overlay.png?raw=true" />
 
