@@ -405,12 +405,14 @@ second press can instead open moOde's existing Library source chooser. Swipe
 up/down (or left/right) through Radio, Folder, Tag, Album, and Playlist and
 physically click the touchpad to activate the focused source.
 
-Every remote navigation action or physical screen touch restarts a five-second
-inactivity timer. When it expires, the UI returns to fullscreen Playback only
-if moOde's current MPD state is `play`. It stays in the source or Library view
-when playback is paused, stopped, or reconnecting. Selecting an item that starts
-playback therefore also returns to fullscreen Playback after five seconds of no
-further interaction.
+On the Raspberry Pi's local Chromium display, every remote navigation action
+or physical screen touch restarts a five-second inactivity timer. When it
+expires, that local UI returns to fullscreen Playback only if moOde's current
+MPD state is `play`. It stays in the source or Library view when playback is
+paused, stopped, or reconnecting. Selecting an item that starts playback
+therefore also returns the local display to fullscreen Playback after five
+seconds of no further interaction. Browser sessions opened over the network
+from a phone or laptop never start this timer and retain their chosen view.
 
 At startup the script waits for X11 and first synchronizes the UI to Playback.
 It installs no additional package or configuration file. Library navigation is
