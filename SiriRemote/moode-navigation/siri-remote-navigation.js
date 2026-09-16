@@ -12,6 +12,8 @@
     ].join(', ');
     const PLAYBACK_RETURN_MS = 5000;
     const CONTINUATION_DELAY_MS = 85;
+    const LOCAL_DISPLAY_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+    const IS_LOCAL_DISPLAY = LOCAL_DISPLAY_HOSTS.has(window.location.hostname);
     let selected = null;
     let playbackReturnTimer = null;
     let continuationTimer = null;
@@ -132,6 +134,12 @@
         if (playbackReturnTimer !== null) {
             window.clearTimeout(playbackReturnTimer);
             playbackReturnTimer = null;
+        }
+        // The kiosk browser runs at http://localhost/. Network clients load
+        // the same marked script, but must retain their independently chosen
+        // view instead of inheriting the kiosk's five-second idle behavior.
+        if (!IS_LOCAL_DISPLAY) {
+            return;
         }
         if (!isPlayback()) {
             playbackReturnTimer = window.setTimeout(returnToPlayback, PLAYBACK_RETURN_MS);
