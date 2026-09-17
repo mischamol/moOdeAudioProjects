@@ -12,6 +12,8 @@
     ].join(', ');
     const PLAYBACK_RETURN_MS = 5000;
     const CONTINUATION_DELAY_MS = 85;
+    const STARTUP_RETURN_POLL_MS = 500;
+    const STARTUP_RETURN_WINDOW_MS = 120000;
     const LOCAL_DISPLAY_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
     const IS_LOCAL_DISPLAY = LOCAL_DISPLAY_HOSTS.has(window.location.hostname);
     let selected = null;
@@ -148,6 +150,28 @@
 
     function scheduleAfterViewChange() {
         window.setTimeout(schedulePlaybackReturn, 80);
+    }
+
+    function watchStartupAutoplay() {
+        if (!IS_LOCAL_DISPLAY) {
+            return;
+        }
+        const deadline = Date.now() + STARTUP_RETURN_WINDOW_MS;
+        const interval = window.setInterval(function () {
+            if (Date.now() >= deadline) {
+                window.clearInterval(interval);
+                return;
+            }
+            // moOde may first render its saved Library view and only later
+            // start playback. Wait for both states instead of arming a timer
+            // prematurely while MPD is still stopped during boot.
+            if (isActuallyPlaying() && !isPlayback()) {
+                if (playbackReturnTimer === null) {
+                    schedulePlaybackReturn();
+                }
+                window.clearInterval(interval);
+            }
+        }, STARTUP_RETURN_POLL_MS);
     }
 
     function openSourcePicker() {
@@ -354,4 +378,6 @@
             clearSelection();
         }
     }).observe(document.getElementById('content'), {childList: true, subtree: true});
+
+    watchStartupAutoplay();
 }());

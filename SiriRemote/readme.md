@@ -413,6 +413,11 @@ paused, stopped, or reconnecting. Selecting an item that starts playback
 therefore also returns the local display to fullscreen Playback after five
 seconds of no further interaction. Browser sessions opened over the network
 from a phone or laptop never start this timer and retain their chosen view.
+For two minutes after the local WebUI starts, a lightweight startup watcher
+also waits for moOde's automatic playback to reach the `play` state. If the
+local display is then still showing Album, Radio, Folder, Tag, or Playlist, it
+starts the same five-second timer once. This covers delayed autoplay after a
+boot without affecting network browsers or repeatedly resetting the timer.
 
 At startup the script waits for X11 and first synchronizes the UI to Playback.
 It installs no additional package or configuration file. Library navigation is
