@@ -15,4 +15,9 @@ else
     }')
 fi
 
-/var/www/util/vol.sh "$level" >/dev/null 2>&1
+cdsp_volume_update=/var/www/util/cdsp_volume_update.py
+
+if ! "$cdsp_volume_update" -l "$level" >/dev/null 2>&1; then
+    logger -t moode-airplay-volume "Could not set CamillaDSP volume to $level%"
+    exit 1
+fi
