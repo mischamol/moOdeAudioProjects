@@ -2495,6 +2495,35 @@ def reclaim_att_channel(mac: str) -> None:
         LOG.error("Could not ask BlueZ to release the ATT channel: %s", exc)
 
 
+def ensure_bluetooth_service() -> bool:
+    """Keep BlueZ available independently of moOde's Bluetooth renderer."""
+    systemctl = "/usr/bin/systemctl"
+    try:
+        active = subprocess.run(
+            [systemctl, "is-active", "--quiet", "bluetooth.service"],
+            check=False,
+            timeout=5,
+        )
+        if active.returncode == 0:
+            return True
+
+        LOG.info("Bluetooth service is inactive; starting it for the Siri Remote")
+        started = subprocess.run(
+            [systemctl, "start", "bluetooth.service"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if started.returncode == 0:
+            return True
+        detail = (started.stderr or started.stdout or f"exit {started.returncode}").strip()
+        LOG.error("Could not start Bluetooth service: %s", detail[:500])
+    except (OSError, subprocess.SubprocessError) as exc:
+        LOG.error("Could not ensure Bluetooth service is active: %s", exc)
+    return False
+
+
 def run(args: argparse.Namespace) -> int:
     stop_event = threading.Event()
 
@@ -2564,6 +2593,14 @@ def run(args: argparse.Namespace) -> int:
     delay = args.reconnect_min
     try:
         while not stop_event.is_set():
+            if not ensure_bluetooth_service():
+                if not stop_event.wait(delay):
+                    LOG.info(
+                        "Retrying Bluetooth service (next backoff %.1fs)",
+                        min(delay * 2, args.reconnect_max),
+                    )
+                    delay = min(delay * 2, args.reconnect_max)
+                continue
             client = RawAttClient(
                 args.mac,
                 args.address_type,

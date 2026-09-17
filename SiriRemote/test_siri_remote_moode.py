@@ -64,6 +64,47 @@ class FakeRendererGuard:
         return self.allowed
 
 
+class BluetoothServiceTests(unittest.TestCase):
+    @mock.patch.object(remote.subprocess, "run")
+    def test_active_service_is_left_untouched(self, run):
+        run.return_value = mock.Mock(returncode=0)
+
+        self.assertTrue(remote.ensure_bluetooth_service())
+        run.assert_called_once_with(
+            ["/usr/bin/systemctl", "is-active", "--quiet", "bluetooth.service"],
+            check=False,
+            timeout=5,
+        )
+
+    @mock.patch.object(remote.subprocess, "run")
+    def test_inactive_service_is_started(self, run):
+        run.side_effect = [
+            mock.Mock(returncode=3),
+            mock.Mock(returncode=0, stdout="", stderr=""),
+        ]
+
+        self.assertTrue(remote.ensure_bluetooth_service())
+        self.assertEqual(
+            run.call_args_list[1],
+            mock.call(
+                ["/usr/bin/systemctl", "start", "bluetooth.service"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            ),
+        )
+
+    @mock.patch.object(remote.subprocess, "run")
+    def test_start_failure_is_reported(self, run):
+        run.side_effect = [
+            mock.Mock(returncode=3),
+            mock.Mock(returncode=1, stdout="", stderr="denied"),
+        ]
+
+        self.assertFalse(remote.ensure_bluetooth_service())
+
+
 def touch_report(x, buttons=0, pressure=40, y=3800):
     payload = bytearray(13)
     payload[0] = 1

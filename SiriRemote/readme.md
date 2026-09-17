@@ -268,6 +268,14 @@ The installer creates or updates:
 /etc/default/siri-remote-moode
 ```
 
+The systemd unit starts `bluetooth.service` as a dependency. The daemon also
+checks that service before every connection attempt and starts it again if
+moOde stopped it while switching off the Bluetooth renderer. This makes the
+Siri Remote independent of that renderer. Only the BlueZ core is restarted;
+the Bluetooth audio service (`bluealsa`) and pairing agent remain controlled
+by moOde, so switching off the renderer still switches off Bluetooth audio.
+`bluetooth.service` does not need to be enabled separately.
+
 With navigation enabled, it also adds one clearly marked script include to
 `/var/www/header.php`, installs `/var/www/js/siri-remote-navigation.js`, stores a backup below
 `/var/backups/siri-remote-moode-navigation/`, reloads the local display, and
@@ -323,6 +331,18 @@ The expected state is:
 Active: active (running)
 enabled
 ```
+
+The Bluetooth renderer may be disabled in moOde. Verify that BlueZ remains
+available for the remote while the audio renderer stays off:
+
+```sh
+systemctl is-active bluetooth
+systemctl is-active bluealsa
+systemctl is-active siri-remote-moode
+```
+
+With the renderer disabled, the expected results are `active`, `inactive`, and
+`active`, respectively.
 
 Test startup after a reboot:
 
@@ -615,6 +635,11 @@ ps -p "$(systemctl show siri-remote-moode -p MainPID --value)" -o pid,pcpu,cmd
 
 The daemon uses Linux raw Bluetooth L2CAP/ATT fixed channel 4. It does not
 depend on `gatttool`, `bluepy`, `bleak`, `dbus_next`, `dbus`, or `gi`.
+
+The remote does not depend on moOde's Bluetooth audio renderer. The systemd
+unit pulls in `bluetooth.service` at boot, and the reconnect loop starts that
+service again if moOde's renderer shutdown stopped it. It deliberately does
+not start `bluealsa`, `bluealsa-aplay`, or `bt-agent`.
 
 The tested remote uses ATT MTU 23. Battery keepalive is disabled because it did
 not improve connection reliability. When BlueZ wins the reconnect race and
