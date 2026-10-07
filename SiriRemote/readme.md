@@ -206,9 +206,10 @@ Before an ordinary action, the daemon reads the renderer flags directly and
 read-only from moOde's SQLite database. This avoids roughly 0.2–0.3 seconds of
 PHP/HTTP latency on every button press. It automatically falls back to the
 existing read-only HTTP endpoint if the database is unavailable, and caches the
-result for 0.25 seconds. It does not continuously poll renderer state. If both
-checks fail, the ordinary action is blocked rather than risking control of an
-external stream. Configure this with:
+result for 0.25 seconds. Optional renderer flags absent from a particular moOde
+release are treated as inactive, avoiding an unnecessary HTTP fallback. It does
+not continuously poll renderer state. If both checks fail, the ordinary action
+is blocked rather than risking control of an external stream. Configure this with:
 
 ```text
 SIRI_IGNORE_DURING_RENDERER=yes
@@ -569,7 +570,7 @@ wake-up press.
 The remote may be asleep and not advertising. Press a button while the log
 shows `Connecting to Siri Remote ...`. Each connection attempt is bounded by
 `SIRI_CONNECT_TIMEOUT_SECONDS` (four seconds by default), followed by at most
-one second of reconnect backoff. This prevents a sleeping remote from trapping
+0.2 seconds of reconnect backoff. This prevents a sleeping remote from trapping
 one kernel connect call for tens of seconds or longer. In two tested wake-up
 cycles, a sleeping remote connected, executed Volume+, and queued its overlay
 in approximately 1.36–2.55 seconds without requiring a second button press.
@@ -648,6 +649,11 @@ occupies fixed channel 4, the daemon asks
 Reconnect setup is bounded separately, while the established ATT socket stays
 blocking and CPU-efficient. The per-device supervision setting is loaded before
 the first connection and remains available to subsequent reconnects.
+
+The initial battery read is deferred for two seconds after notifications become
+active. This keeps an optional ATT read out of the reconnect critical path and
+gives the wake-up button report priority. Configure the delay with
+`SIRI_BATTERY_INITIAL_DELAY_SECONDS`.
 
 The missing-release recovery is restricted to volume. A separate short guard
 after each completed reconnect handles the observed compact/extended duplicate

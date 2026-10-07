@@ -98,8 +98,11 @@ Voor een gewone knopactie leest de daemon de rendererflags rechtstreeks en
 alleen-lezen uit moOde's SQLite-database. Daarmee vervalt ongeveer 0,2–0,3
 seconde PHP/HTTP-vertraging per knopdruk. Als de database niet beschikbaar is,
 valt de code automatisch terug op het bestaande alleen-lezen HTTP-endpoint. De
-uitkomst wordt maximaal 0,25 seconde bewaard; er draait geen extra polling. Als
-beide controles mislukken, wordt de gewone actie voor de zekerheid genegeerd.
+uitkomst wordt maximaal 0,25 seconde bewaard; er draait geen extra polling.
+Optionele rendererflags die in een bepaalde moOde-versie ontbreken, gelden als
+inactief. Zo veroorzaakt bijvoorbeeld een verwijderde Deezer-integratie geen
+HTTP-fallback bij iedere knopdruk. Als beide controles mislukken, wordt de
+gewone actie voor de zekerheid genegeerd.
 Instellingen:
 
 ```text

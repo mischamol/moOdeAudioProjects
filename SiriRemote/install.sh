@@ -104,6 +104,8 @@ sed -i 's/^SIRI_CONNECT_TIMEOUT_SECONDS=2$/SIRI_CONNECT_TIMEOUT_SECONDS=4/' /etc
 grep -q '^SIRI_CONNECT_TIMEOUT_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_CONNECT_TIMEOUT_SECONDS=4' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_KEEPALIVE_SECONDS=.*/SIRI_KEEPALIVE_SECONDS=0/' /etc/default/siri-remote-moode
 grep -q '^SIRI_KEEPALIVE_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_KEEPALIVE_SECONDS=0' >> /etc/default/siri-remote-moode
+sed -i 's/^SIRI_BATTERY_INITIAL_DELAY_SECONDS=.*/SIRI_BATTERY_INITIAL_DELAY_SECONDS=2/' /etc/default/siri-remote-moode
+grep -q '^SIRI_BATTERY_INITIAL_DELAY_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_BATTERY_INITIAL_DELAY_SECONDS=2' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_BATTERY_CHECK_SECONDS=300$/SIRI_BATTERY_CHECK_SECONDS=900/' /etc/default/siri-remote-moode
 grep -q '^SIRI_BATTERY_CHECK_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_BATTERY_CHECK_SECONDS=900' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_BATTERY_LOW_CHECK_SECONDS=.*/SIRI_BATTERY_LOW_CHECK_SECONDS=300/' /etc/default/siri-remote-moode
@@ -114,7 +116,7 @@ grep -q '^SIRI_BATTERY_LOW_PERCENT=' /etc/default/siri-remote-moode || printf '%
 grep -q '^SIRI_BATTERY_CRITICAL_PERCENT=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_BATTERY_CRITICAL_PERCENT=5' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_SECURITY=.*/SIRI_SECURITY=medium/' /etc/default/siri-remote-moode
 sed -i 's/^RECONNECT_MIN=.*/RECONNECT_MIN=0.2/' /etc/default/siri-remote-moode
-sed -i 's/^RECONNECT_MAX=.*/RECONNECT_MAX=1/' /etc/default/siri-remote-moode
+sed -i 's/^RECONNECT_MAX=.*/RECONNECT_MAX=0.2/' /etc/default/siri-remote-moode
 grep -q '^SIRI_RECLAIM_BUSY=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_RECLAIM_BUSY=yes' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_DEBUG=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_DEBUG=no' >> /etc/default/siri-remote-moode
 

@@ -511,6 +511,28 @@ class RendererGuardTests(unittest.TestCase):
                 guard._read_database(), ("aplactive", "spotactive"),
             )
 
+    def test_direct_database_read_treats_missing_optional_renderer_as_inactive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "moode-sqlite3.db")
+            connection = sqlite3.connect(path)
+            try:
+                connection.execute(
+                    "CREATE TABLE cfg_system "
+                    "(id INTEGER PRIMARY KEY, param CHAR(32), value CHAR(32))"
+                )
+                connection.executemany(
+                    "INSERT INTO cfg_system (param, value) VALUES (?, ?)",
+                    [("aplactive", "0"), ("spotactive", "1")],
+                )
+                connection.commit()
+            finally:
+                connection.close()
+            with mock.patch.dict(
+                os.environ, {"MOODE_DB_PATH": path}, clear=False,
+            ):
+                guard = remote.RendererGuard("http://localhost/command/", 4)
+            self.assertEqual(guard._read_database(), ("spotactive",))
+
     def test_direct_database_failure_falls_back_to_http(self):
         guard = remote.RendererGuard("http://localhost/command/", 4)
         with mock.patch.object(
@@ -907,6 +929,42 @@ class RawAttClientTests(unittest.TestCase):
                     client.battery_interval(900, 300, 60, 10, 5),
                     interval,
                 )
+
+    def test_initial_battery_read_is_deferred_until_after_notifications_start(self):
+        client = remote.RawAttClient(
+            "70:48:0F:F2:65:99", "public", "medium",
+        )
+        stop_event = remote.threading.Event()
+        clock = [0.0]
+        receive_waits = []
+        battery_sources = []
+
+        def receive(timeout):
+            receive_waits.append(timeout)
+            clock[0] += timeout
+            raise remote.socket.timeout()
+
+        def read_battery(source):
+            battery_sources.append(source)
+            stop_event.set()
+            return 80
+
+        with (
+            mock.patch.object(remote.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(client, "_receive", side_effect=receive),
+            mock.patch.object(client, "read_battery", side_effect=read_battery),
+        ):
+            client.receive_forever(
+                stop_event,
+                keepalive_seconds=0,
+                battery_check_seconds=900,
+                battery_low_check_seconds=300,
+                battery_critical_check_seconds=60,
+                initial_battery_delay_seconds=2,
+            )
+
+        self.assertEqual(receive_waits, [1.0, 1.0])
+        self.assertEqual(battery_sources, ["Initial check"])
 
 
 if __name__ == "__main__":

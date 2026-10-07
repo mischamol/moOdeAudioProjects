@@ -536,6 +536,7 @@ class RawAttClient:
         battery_critical_check_seconds: float = 0,
         battery_low_threshold: int = 10,
         battery_critical_threshold: int = 5,
+        initial_battery_delay_seconds: float = 2,
     ) -> None:
         next_keepalive = (
             time.monotonic() + keepalive_seconds if keepalive_seconds > 0 else None
@@ -547,10 +548,16 @@ class RawAttClient:
             battery_low_threshold,
             battery_critical_threshold,
         )
-        next_battery_check = (
-            time.monotonic() + initial_battery_interval
-            if battery_check_seconds > 0 else None
-        )
+        initial_battery_pending = battery_check_seconds > 0
+        next_battery_check = None
+        if initial_battery_pending:
+            # Keep the first ATT battery transaction out of the reconnect
+            # critical path. Notifications are already enabled, so the remote
+            # can deliver its wake-up button before this optional read starts.
+            next_battery_check = time.monotonic() + min(
+                initial_battery_delay_seconds,
+                initial_battery_interval,
+            )
         while not stop_event.is_set():
             deadlines = [
                 deadline for deadline in (next_keepalive, next_battery_check)
@@ -573,7 +580,10 @@ class RawAttClient:
                 next_battery_check is not None
                 and time.monotonic() >= next_battery_check
             ):
-                self.read_battery("Periodic check")
+                self.read_battery(
+                    "Initial check" if initial_battery_pending else "Periodic check"
+                )
+                initial_battery_pending = False
                 interval = self.battery_interval(
                     battery_check_seconds,
                     battery_low_check_seconds,
@@ -631,12 +641,9 @@ class RendererGuard:
         finally:
             connection.close()
         data = dict(rows)
-        missing = set(self.ACTIVE_FLAGS) - data.keys()
-        if missing:
-            raise ValueError(
-                "renderer flags missing from cfg_system: "
-                + ", ".join(sorted(missing))
-            )
+        # Renderer columns vary between moOde releases and optional packages.
+        # A flag that does not exist cannot represent an active renderer on
+        # this installation, so do not fall back to the slower HTTP endpoint.
         return self.active_renderers(data)
 
     def _read_http(self) -> tuple[str, ...]:
@@ -2623,8 +2630,6 @@ def run(args: argparse.Namespace) -> int:
                 client.enable_input()
                 mapper.mark_connection_ready()
                 LOG.info("Ready; listening for notifications on 0x0023")
-                if args.battery_check > 0:
-                    client.read_battery("Initial check")
                 delay = args.reconnect_min
                 client.receive_forever(
                     stop_event,
@@ -2634,6 +2639,7 @@ def run(args: argparse.Namespace) -> int:
                     args.battery_critical_check,
                     args.battery_threshold,
                     args.battery_critical_threshold,
+                    args.battery_initial_delay,
                 )
             except (ConnectionError, OSError, PermissionError) as exc:
                 if stop_event.is_set():
@@ -2705,6 +2711,12 @@ def parse_args() -> argparse.Namespace:
         help="seconds between Siri Remote battery checks; 0 disables checks",
     )
     parser.add_argument(
+        "--battery-initial-delay",
+        type=float,
+        default=float(env("SIRI_BATTERY_INITIAL_DELAY_SECONDS", "2")),
+        help="seconds to defer the first battery read after reconnect",
+    )
+    parser.add_argument(
         "--battery-low-check",
         type=float,
         default=float(env("SIRI_BATTERY_LOW_CHECK_SECONDS", "300")),
@@ -2734,7 +2746,7 @@ def parse_args() -> argparse.Namespace:
         default=env("SIRI_RECLAIM_BUSY", "yes").lower() in ("1", "yes", "true", "on"),
     )
     parser.add_argument("--reconnect-min", type=float, default=float(env("RECONNECT_MIN", "0.2")))
-    parser.add_argument("--reconnect-max", type=float, default=float(env("RECONNECT_MAX", "1")))
+    parser.add_argument("--reconnect-max", type=float, default=float(env("RECONNECT_MAX", "0.2")))
     parser.add_argument("--dry-run", action="store_true", help="log button commands without calling moOde")
     parser.add_argument(
         "--debug",
@@ -2759,6 +2771,8 @@ def parse_args() -> argparse.Namespace:
         parser.error("keepalive interval cannot be negative")
     if args.battery_check < 0:
         parser.error("battery check interval cannot be negative")
+    if args.battery_initial_delay < 0:
+        parser.error("initial battery delay cannot be negative")
     if args.battery_low_check < 0:
         parser.error("low-battery check interval cannot be negative")
     if args.battery_critical_check < 0:
