@@ -11,7 +11,8 @@
         '#viewswitch .playlist-view-btn',
     ].join(', ');
     const PLAYBACK_RETURN_MS = 5000;
-    const CONTINUATION_DELAY_MS = 85;
+    const CONTINUATION_BATCH_DELAY_MS = 12;
+    const SCROLL_SETTLE_DELAY_MS = 20;
     const STARTUP_RETURN_POLL_MS = 500;
     const STARTUP_RETURN_WINDOW_MS = 120000;
     const LOCAL_DISPLAY_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
@@ -20,6 +21,7 @@
     let playbackReturnTimer = null;
     let continuationTimer = null;
     let continuationQueue = [];
+    let selectionScrollTimer = null;
 
     const style = document.createElement('style');
     style.textContent = `
@@ -37,11 +39,19 @@
             background-color: transparent !important;
             color: inherit !important;
         }
-        :root.siri-remote-navigating #viewswitch .btn.active:not(.${SELECTED_CLASS}),
-        :root.siri-remote-navigating #viewswitch .btn.btn-primary:not(.${SELECTED_CLASS}) {
+        :root.siri-remote-navigating #viewswitch .btn:not(.${SELECTED_CLASS}),
+        :root.siri-remote-navigating #viewswitch .btn:not(.${SELECTED_CLASS}):hover,
+        :root.siri-remote-navigating #viewswitch .btn:not(.${SELECTED_CLASS}):focus,
+        :root.siri-remote-navigating #viewswitch .btn:not(.${SELECTED_CLASS}):active {
             background: transparent !important;
+            background-image: none !important;
+            border-color: transparent !important;
             box-shadow: none !important;
             color: inherit !important;
+            outline: none !important;
+        }
+        :root.siri-remote-navigating #viewswitch .btn:not(.${SELECTED_CLASS}) .pane {
+            display: none !important;
         }
     `;
     document.head.appendChild(style);
@@ -86,17 +96,46 @@
         return {x: rect.left + rect.width / 2, y: rect.top + rect.height / 2};
     }
 
-    function mark(element) {
+    function cancelSelectionScroll() {
+        if (selectionScrollTimer !== null) {
+            window.clearTimeout(selectionScrollTimer);
+            selectionScrollTimer = null;
+        }
+    }
+
+    function scrollToSelection() {
+        selectionScrollTimer = null;
+        if (selected && selected.isConnected) {
+            selected.scrollIntoView({
+                block: 'center',
+                inline: 'nearest',
+                behavior: 'smooth',
+            });
+        }
+    }
+
+    function mark(element, scrollAfterMark) {
+        // moOde can replace a view node while the menu is opening. Remove any
+        // selection class left on such an older node as well as the tracked one.
+        document.querySelectorAll(`.${SELECTED_CLASS}`).forEach((item) => {
+            if (item !== element) item.classList.remove(SELECTED_CLASS);
+        });
         if (selected && selected !== element) {
             selected.classList.remove(SELECTED_CLASS);
         }
         selected = element;
         selected.classList.add(SELECTED_CLASS);
         document.documentElement.classList.add('siri-remote-navigating');
-        // Re-centering every item with smooth scrolling queues overlapping
-        // animations during a multi-step swipe. "nearest" leaves visible
-        // items still and scrolls only the minimum amount at an edge.
-        selected.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'auto'});
+        cancelSelectionScroll();
+        // Continuation keystrokes for a multi-step swipe arrive shortly after
+        // the first step. Defer scrolling just long enough to combine them,
+        // then animate only once to the final selection. This avoids stacking
+        // several native smooth-scroll animations on top of each other.
+        if (scrollAfterMark !== false) {
+            selectionScrollTimer = window.setTimeout(
+                scrollToSelection, SCROLL_SETTLE_DELAY_MS,
+            );
+        }
     }
 
     function clearSelection() {
@@ -220,32 +259,34 @@
             continuationTimer = null;
         }
         continuationQueue = [];
+        cancelSelectionScroll();
     }
 
-    function runContinuation() {
+    function runContinuations() {
         continuationTimer = null;
-        const direction = continuationQueue.shift();
-        if (direction) {
-            move(direction, true);
+        while (continuationQueue.length) {
+            move(continuationQueue.shift(), true, false);
         }
-        if (continuationQueue.length) {
-            continuationTimer = window.setTimeout(
-                runContinuation, CONTINUATION_DELAY_MS,
-            );
-        }
+        // All focus changes have completed synchronously. Center the final
+        // item immediately so the outline never remains outside the viewport.
+        scrollToSelection();
     }
 
     function queueContinuation(direction) {
+        // The first step may already have scheduled a scroll. A continuation
+        // makes that an intermediate selection, so only the final step scrolls.
+        cancelSelectionScroll();
         continuationQueue.push(direction);
-        if (continuationTimer === null) {
-            continuationTimer = window.setTimeout(
-                runContinuation, CONTINUATION_DELAY_MS,
-            );
+        if (continuationTimer !== null) {
+            window.clearTimeout(continuationTimer);
         }
+        continuationTimer = window.setTimeout(
+            runContinuations, CONTINUATION_BATCH_DELAY_MS,
+        );
         return true;
     }
 
-    function move(direction, continuation) {
+    function move(direction, continuation, scrollAfterMove) {
         const items = candidates();
         const current = startingItem(items);
         if (!current) {
@@ -285,7 +326,7 @@
             };
             return score(a) - score(b);
         });
-        mark(options[0].item);
+        mark(options[0].item, scrollAfterMove !== false);
         schedulePlaybackReturn();
         return true;
     }

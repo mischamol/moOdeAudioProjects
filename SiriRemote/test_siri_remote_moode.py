@@ -129,10 +129,12 @@ class ButtonMapperTests(unittest.TestCase):
             "SIRI_TOUCH_MAX_AGE_SECONDS": "1.5",
             "SIRI_SWIPE_MIN_DISTANCE": "350",
             "SIRI_SWIPE_STEP_DISTANCE": "450",
-            "SIRI_SWIPE_MAX_STEPS": "3",
-            "SIRI_SWIPE_FLICK_SECONDS": "0.18",
-            "SIRI_SWIPE_MAX_SECONDS": "0.8",
-            "SIRI_TOUCH_SEQUENCE_GAP_SECONDS": "0.20",
+            "SIRI_SWIPE_MAX_STEPS": "8",
+            "SIRI_SWIPE_MOMENTUM_MIN_SPEED": "4000",
+            "SIRI_SWIPE_MOMENTUM_SECONDS": "0.40",
+            "SIRI_SWIPE_MOMENTUM_MAX_DISTANCE": "2700",
+            "SIRI_SWIPE_MAX_SECONDS": "1.5",
+            "SIRI_TOUCH_SEQUENCE_GAP_SECONDS": "0.35",
             "SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS": "2",
             "MOODE_PREVIOUS_CMD": "previous",
             "MOODE_NEXT_CMD": "next",
@@ -202,14 +204,14 @@ class ButtonMapperTests(unittest.TestCase):
         self.notify(touch_report(3600))
         self.assertEqual(self.worker.actions, [])
 
-    def test_fast_short_swipes_remain_one_precise_step(self):
+    def test_slow_short_swipes_remain_one_precise_step(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
         )
         with mock.patch.object(
             remote.time, "monotonic",
-            side_effect=(100.0, 100.1, 101.0, 101.1),
+            side_effect=(100.0, 100.19, 101.0, 101.19),
         ):
             mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2500, y=3500))
             mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3520))
@@ -219,7 +221,36 @@ class ButtonMapperTests(unittest.TestCase):
         self.assertEqual(self.worker.actions, [])
         mapper.reset()
 
-    def test_fast_long_flick_adds_one_bounded_step(self):
+    def test_deliberate_one_second_swipe_is_not_discarded(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        with mock.patch.object(
+            remote.time, "monotonic",
+            side_effect=(110.0, 110.25, 110.5, 110.75, 111.0),
+        ):
+            for x in (2500, 2600, 2700, 2800, 3000):
+                mapper.notification(
+                    remote.HANDLE_INPUT_VALUE, touch_report(x, y=3500)
+                )
+        self.assertEqual(clicker.navigation_actions, ["right"])
+        mapper.reset()
+
+    def test_fast_short_flick_gains_one_momentum_step(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        with mock.patch.object(
+            remote.time, "monotonic", side_effect=(125.0, 125.1),
+        ):
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2500, y=3500))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3520))
+        self.assertEqual(clicker.navigation_actions, ["right", "continue-right"])
+        mapper.reset()
+
+    def test_fast_long_flick_uses_bounded_momentum(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
@@ -231,11 +262,27 @@ class ButtonMapperTests(unittest.TestCase):
             mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3010, y=4100))
         self.assertEqual(
             clicker.navigation_actions,
-            ["down", "continue-down", "continue-down"],
+            ["down"] + ["continue-down"] * 5,
         )
         mapper.reset()
 
-    def test_long_swipe_moves_progressively_and_stops_at_three_steps(self):
+    def test_very_fast_flick_is_bounded_at_eight_steps(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        with mock.patch.object(
+            remote.time, "monotonic", side_effect=(175.0, 175.08),
+        ):
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=5000))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3010, y=3800))
+        self.assertEqual(
+            clicker.navigation_actions,
+            ["down"] + ["continue-down"] * 7,
+        )
+        mapper.reset()
+
+    def test_slow_long_swipe_moves_progressively_without_flick_momentum(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
@@ -252,7 +299,7 @@ class ButtonMapperTests(unittest.TestCase):
             mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2980, y=2500))
         self.assertEqual(
             clicker.navigation_actions,
-            ["down", "continue-down", "continue-down"],
+            ["down"] + ["continue-down"] * 4,
         )
         mapper.reset()
 
@@ -599,6 +646,23 @@ class X11ClickWorkerTests(unittest.TestCase):
         )
         self.assertEqual(guard.actions, ["Library navigation", "Library navigation"])
 
+    def test_navigation_gesture_uses_one_x11_batch_and_one_renderer_check(self):
+        guard = FakeRendererGuard(True)
+        with mock.patch.dict(
+            os.environ,
+            {"SIRI_MENU_SCREEN_CLICK": "no", "SIRI_LIBRARY_NAVIGATION": "yes"},
+            clear=False,
+        ):
+            clicker = remote.X11ClickWorker(guard)
+        actions = ["right", "continue-right", "continue-right"]
+        with mock.patch.object(clicker, "_emit_navigation_keys") as emit:
+            clicker.start()
+            clicker.submit_navigation_actions(actions)
+            clicker.stop()
+            clicker.thread.join(1)
+        emit.assert_called_once_with(actions)
+        self.assertEqual(guard.actions, ["Library navigation"])
+
     def test_double_menu_emits_library_source_key(self):
         guard = FakeRendererGuard(True)
         with mock.patch.dict(
@@ -642,6 +706,8 @@ class X11ClickWorkerTests(unittest.TestCase):
             clicker = remote.X11ClickWorker()
         with self.assertRaisesRegex(ValueError, "invalid"):
             clicker.submit_navigation("diagonal")
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            clicker.submit_navigation_actions(["right", "diagonal"])
 
     def test_menu_uses_actual_moode_view_for_both_directions(self):
         env = {

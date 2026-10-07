@@ -384,7 +384,10 @@ activates that item through moOde's existing click handler. The first swipe
 moves immediately; it is not consumed merely to create focus. While browsing,
 moOde's old active background is hidden so only one selection is visible. After
 activation, the temporary focus is cleared and moOde's normal active marker is
-shown again. In Playback, clicking the left or right touchpad half retains the
+shown again. In the Library source chooser, moOde's check mark for the active
+source and any pointer/focus highlight are likewise hidden whenever Siri focus
+moves elsewhere, preventing two sources from appearing selected. In Playback,
+clicking the left or right touchpad half retains the
 Previous/Next behavior.
 
 <p>
@@ -393,14 +396,19 @@ Previous/Next behavior.
 </p>
 <sub>Left: directional touchpad focus in Album. Right: source selection after a double press on Menu/Back.</sub>
 
-The first-generation touch area is decoded in both axes. The complete short
-distance band always moves exactly one item, even when performed quickly. A
-longer swipe progressively moves up to three items; once it already qualifies
-for at least two steps, a fast flick adds one bounded acceleration step. The
-compact Library source chooser always moves only one source per gesture. No
-movement continues after the finger is lifted. Configure this behavior with `SIRI_SWIPE_MIN_DISTANCE`,
+The first-generation touch area is decoded in both axes. A slow, short swipe
+moves one item. Average gesture speed above a deliberate threshold is projected
+forward, so a quick flick can cross several albums. A very fast gesture is
+bounded at eight items. The compact Library source
+chooser always moves only one source per gesture. No movement continues after
+the finger is lifted. Multi-step gestures are emitted through one X11
+connection, applied as one browser-side burst, and smoothly centered on their
+final item so the focus frame remains visible. Deliberate slow gestures may
+take up to 1.5 seconds, and a 0.35-second report gap is tolerated. Configure
+this behavior with `SIRI_SWIPE_MIN_DISTANCE`,
 `SIRI_SWIPE_STEP_DISTANCE`, `SIRI_SWIPE_MAX_STEPS`,
-`SIRI_SWIPE_FLICK_SECONDS`, `SIRI_SWIPE_MAX_SECONDS`, and
+`SIRI_SWIPE_MOMENTUM_MIN_SPEED`, `SIRI_SWIPE_MOMENTUM_SECONDS`,
+`SIRI_SWIPE_MOMENTUM_MAX_DISTANCE`, `SIRI_SWIPE_MAX_SECONDS`, and
 `SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. The click split remains configurable with
 `SIRI_TOUCH_X_SPLIT`, `SIRI_TOUCH_DEAD_ZONE`, and
 `SIRI_TOUCH_MAX_AGE_SECONDS`.

@@ -121,9 +121,13 @@ bladeren wordt de oude `.active`-achtergrond tijdelijk verborgen, zodat precies
 alleen moOde's normale markering over. In Playback blijft een fysieke click op
 de linker- of rechterhelft Previous/Next uitvoeren.
 
-De Gen-1-touchdata wordt in beide assen gedecodeerd. De veegdrempels zijn
-instelbaar met `SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_MAX_SECONDS` en
-`SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. De klikverdeling blijft instelbaar met
+De Gen-1-touchdata wordt in beide assen gedecodeerd. Afstand bepaalt het
+basisaantal stappen; een begrensde projectie van de gemiddelde snelheid laat
+een snelle flick meerdere items overbruggen, met maximaal acht stappen. De
+drempels zijn instelbaar met `SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_STEP_DISTANCE`,
+`SIRI_SWIPE_MOMENTUM_MIN_SPEED`, `SIRI_SWIPE_MOMENTUM_SECONDS`,
+`SIRI_SWIPE_MOMENTUM_MAX_DISTANCE`,
+`SIRI_SWIPE_MAX_SECONDS` en `SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. De klikverdeling blijft instelbaar met
 `SIRI_TOUCH_X_SPLIT`, `SIRI_TOUCH_DEAD_ZONE` en
 `SIRI_TOUCH_MAX_AGE_SECONDS`.
 

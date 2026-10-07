@@ -841,6 +841,21 @@ class X11ClickWorker:
         except queue.Full:
             LOG.error("X11 control queue full; dropping navigation %s", action)
 
+    def submit_navigation_actions(self, actions: list[str]) -> None:
+        """Queue one complete gesture so X11 is opened only once."""
+        if not self.navigation_enabled or not actions:
+            return
+        valid = {
+            "left", "right", "up", "down",
+            "continue-left", "continue-right", "continue-up", "continue-down",
+        }
+        if any(action not in valid for action in actions):
+            raise ValueError(f"invalid library navigation actions: {actions!r}")
+        try:
+            self.commands.put_nowait("navigation-batch:" + ",".join(actions))
+        except queue.Full:
+            LOG.error("X11 control queue full; dropping navigation gesture %s", actions)
+
     @staticmethod
     def _load_libraries() -> tuple[ctypes.CDLL, ctypes.CDLL]:
         x11 = ctypes.CDLL("libX11.so.6")
@@ -891,6 +906,10 @@ class X11ClickWorker:
 
     def _emit_navigation_key(self, action: str) -> None:
         """Send a private Ctrl+Alt+Shift chord consumed by our moOde extension."""
+        self._emit_navigation_keys([action])
+
+    def _emit_navigation_keys(self, actions: list[str]) -> None:
+        """Send one or more private chords through a single X11 connection."""
         keysyms = {
             "left": ord("h"),
             "right": ord("l"),
@@ -909,19 +928,20 @@ class X11ClickWorker:
         x11, xtst = self._load_libraries()
         display = self._open_display(x11)
         try:
-            keycodes = [
-                x11.XKeysymToKeycode(display, keysym)
-                for keysym in (0xFFE3, 0xFFE9, 0xFFE1, keysyms[action])
-            ]
-            if not all(keycodes):
-                raise RuntimeError(f"X11 keymap cannot encode navigation {action}")
-            control, alt, shift, key = keycodes
-            for modifier in (control, alt, shift):
-                xtst.XTestFakeKeyEvent(display, modifier, True, 0)
-            xtst.XTestFakeKeyEvent(display, key, True, 0)
-            xtst.XTestFakeKeyEvent(display, key, False, 0)
-            for modifier in (shift, alt, control):
-                xtst.XTestFakeKeyEvent(display, modifier, False, 0)
+            for action in actions:
+                keycodes = [
+                    x11.XKeysymToKeycode(display, keysym)
+                    for keysym in (0xFFE3, 0xFFE9, 0xFFE1, keysyms[action])
+                ]
+                if not all(keycodes):
+                    raise RuntimeError(f"X11 keymap cannot encode navigation {action}")
+                control, alt, shift, key = keycodes
+                for modifier in (control, alt, shift):
+                    xtst.XTestFakeKeyEvent(display, modifier, True, 0)
+                xtst.XTestFakeKeyEvent(display, key, True, 0)
+                xtst.XTestFakeKeyEvent(display, key, False, 0)
+                for modifier in (shift, alt, control):
+                    xtst.XTestFakeKeyEvent(display, modifier, False, 0)
             x11.XFlush(display)
         finally:
             x11.XCloseDisplay(display)
@@ -1023,6 +1043,18 @@ class X11ClickWorker:
                         continue
                     self._emit_navigation_key("library-menu")
                     LOG.info("Menu/Back double-click -> Library source menu")
+                elif item.startswith("navigation-batch:"):
+                    actions = item.partition(":")[2].split(",")
+                    if (
+                        self.renderer_guard is not None
+                        and not self.renderer_guard.allows("Library navigation")
+                    ):
+                        continue
+                    self._emit_navigation_keys(actions)
+                    LOG.info(
+                        "Touchpad library navigation -> %s",
+                        ", ".join(actions),
+                    )
                 else:
                     action = item.partition(":")[2]
                     if (
@@ -2071,11 +2103,19 @@ class ButtonMapper:
         self.touch_max_age = float(env("SIRI_TOUCH_MAX_AGE_SECONDS", "1.5"))
         self.swipe_min_distance = int(env("SIRI_SWIPE_MIN_DISTANCE", "350"), 0)
         self.swipe_step_distance = int(env("SIRI_SWIPE_STEP_DISTANCE", "450"), 0)
-        self.swipe_max_steps = int(env("SIRI_SWIPE_MAX_STEPS", "3"), 0)
-        self.swipe_flick_seconds = float(env("SIRI_SWIPE_FLICK_SECONDS", "0.18"))
-        self.swipe_max_seconds = float(env("SIRI_SWIPE_MAX_SECONDS", "0.8"))
+        self.swipe_max_steps = int(env("SIRI_SWIPE_MAX_STEPS", "8"), 0)
+        self.swipe_momentum_min_speed = float(
+            env("SIRI_SWIPE_MOMENTUM_MIN_SPEED", "4000")
+        )
+        self.swipe_momentum_seconds = float(
+            env("SIRI_SWIPE_MOMENTUM_SECONDS", "0.40")
+        )
+        self.swipe_momentum_max_distance = int(
+            env("SIRI_SWIPE_MOMENTUM_MAX_DISTANCE", "2700"), 0
+        )
+        self.swipe_max_seconds = float(env("SIRI_SWIPE_MAX_SECONDS", "1.5"))
         self.touch_sequence_gap = float(
-            env("SIRI_TOUCH_SEQUENCE_GAP_SECONDS", "0.20")
+            env("SIRI_TOUCH_SEQUENCE_GAP_SECONDS", "0.35")
         )
         self.library_navigation = bool(
             screen_clicker is not None and screen_clicker.navigation_enabled
@@ -2102,8 +2142,12 @@ class ButtonMapper:
             raise ValueError("SIRI_SWIPE_STEP_DISTANCE must be greater than zero")
         if not 1 <= self.swipe_max_steps <= 8:
             raise ValueError("SIRI_SWIPE_MAX_STEPS must be between 1 and 8")
-        if self.swipe_flick_seconds < 0:
-            raise ValueError("SIRI_SWIPE_FLICK_SECONDS cannot be negative")
+        if self.swipe_momentum_min_speed < 0:
+            raise ValueError("SIRI_SWIPE_MOMENTUM_MIN_SPEED cannot be negative")
+        if self.swipe_momentum_seconds < 0:
+            raise ValueError("SIRI_SWIPE_MOMENTUM_SECONDS cannot be negative")
+        if self.swipe_momentum_max_distance < 0:
+            raise ValueError("SIRI_SWIPE_MOMENTUM_MAX_DISTANCE cannot be negative")
         if self.swipe_max_seconds <= 0:
             raise ValueError("SIRI_SWIPE_MAX_SECONDS must be greater than zero")
         if self.touch_sequence_gap <= 0:
@@ -2319,14 +2363,20 @@ class ButtonMapper:
         if distance < self.swipe_min_distance:
             return []
 
-        target_steps = 1 + (
-            distance - self.swipe_min_distance
-        ) // self.swipe_step_distance
-        # Keep the entire first distance band precise. Acceleration only
-        # applies after the gesture already qualifies for at least two steps,
-        # otherwise an ordinary quick one-item swipe is almost impossible.
-        if target_steps >= 2 and elapsed <= self.swipe_flick_seconds:
-            target_steps += 1
+        # Average speed is less sensitive to a single irregular Bluetooth
+        # sample than instantaneous velocity. Only speed above the deliberate
+        # swipe threshold contributes momentum.
+        speed = distance / max(elapsed, 0.001)
+        momentum_distance = min(
+            float(self.swipe_momentum_max_distance),
+            max(0.0, speed - self.swipe_momentum_min_speed)
+            * self.swipe_momentum_seconds,
+        )
+        projected_distance = distance + momentum_distance
+        target_steps = 1 + int(
+            (projected_distance - self.swipe_min_distance)
+            // self.swipe_step_distance
+        )
         target_steps = min(self.swipe_max_steps, target_steps)
         new_steps = target_steps - self.gesture_steps_sent
         if new_steps <= 0:
@@ -2449,8 +2499,14 @@ class ButtonMapper:
             touch_action = self._touch_click_action_locked(buttons, now)
 
         if gesture_actions and self.library_navigation:
-            for gesture_action in gesture_actions:
-                self.screen_clicker.submit_navigation(gesture_action)
+            submit_batch = getattr(
+                self.screen_clicker, "submit_navigation_actions", None
+            )
+            if submit_batch is not None:
+                submit_batch(gesture_actions)
+            else:
+                for gesture_action in gesture_actions:
+                    self.screen_clicker.submit_navigation(gesture_action)
         if touch_action is not None:
             name, command = touch_action
             if command.startswith("navigation:"):
