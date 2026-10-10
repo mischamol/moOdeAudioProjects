@@ -32,6 +32,18 @@ class HeaderPatchTests(unittest.TestCase):
         self.assertIn(patch_header.SCRIPT, installed)
         self.assertEqual(patch_header.remove(installed), BUILT_HEADER)
 
+    def test_previous_include_is_upgraded_and_remains_removable(self):
+        for previous_script in patch_header.PREVIOUS_SCRIPTS:
+            with self.subTest(previous_script=previous_script):
+                installed = patch_header.apply(HEADER)
+                previous = installed.replace(
+                    patch_header.SCRIPT, previous_script,
+                )
+                upgraded = patch_header.apply(previous)
+                self.assertIn(patch_header.SCRIPT, upgraded)
+                self.assertNotIn(previous_script, upgraded)
+                self.assertEqual(patch_header.remove(upgraded), HEADER)
+
     def test_changed_managed_block_is_not_removed(self):
         installed = patch_header.apply(HEADER).replace(
             patch_header.SCRIPT, '<script src="js/changed.js"></script>',

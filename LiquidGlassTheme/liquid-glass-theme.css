@@ -96,10 +96,42 @@
     backdrop-filter: blur(3px) saturate(145%);
 }
 
+/* Give every ordinary moOde action the same raised, tint-free glass material
+   as the transport controls. More specific rules below preserve menu rows,
+   transport sizing and the performance-oriented Library exceptions. */
+:root.liquid-glass-theme .btn,
+:root.liquid-glass-theme #playbar-switch {
+    background:
+        radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.22), transparent 34%),
+        radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.13), transparent 56%),
+        linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008)) !important;
+    border-color: rgba(255,255,255,.32) !important;
+    box-shadow: inset 1px 2px 3px rgba(255,255,255,.46),
+                inset -2px -4px 7px rgba(0,0,0,.24),
+                0 8px 20px rgba(0,0,0,.34),
+                0 2px 5px rgba(0,0,0,.16) !important;
+    text-shadow:
+        -1px -1px 2px rgba(0,0,0,.86),
+         1px -1px 2px rgba(0,0,0,.86),
+        -1px  1px 2px rgba(0,0,0,.86),
+         1px  1px 2px rgba(0,0,0,.86),
+         0 2px 6px rgba(0,0,0,.66) !important;
+}
+
+:root.liquid-glass-theme .btn i,
+:root.liquid-glass-theme .btn .fa,
+:root.liquid-glass-theme .btn .material-icons,
+:root.liquid-glass-theme .btn svg,
+:root.liquid-glass-theme #playbar-switch i {
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,.45));
+}
+
 :root.liquid-glass-theme button.btn:hover,
 :root.liquid-glass-theme button.btn:focus,
 :root.liquid-glass-theme .btn-group > .btn:hover {
-    background: rgba(255,255,255,.10) !important;
+    background:
+        radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.28), transparent 36%),
+        linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.025)) !important;
     border-color: rgba(255,255,255,.30) !important;
 }
 
@@ -241,21 +273,47 @@
     vertical-align: middle !important;
 }
 
+/* The compact actions contain only an icon and should therefore remain true
+   circles on both the local portrait display and wide browser layouts. The
+   volume control is the sole labelled action and may remain a wider capsule. */
+:root.liquid-glass-theme #panel-footer #playbar-toggles .btn:not(#playbar-volume-popup-btn) {
+    width: 3rem !important;
+    min-width: 3rem !important;
+    max-width: 3rem !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+}
+
 /* On wider browser layouts the native Previous and Next glyphs are narrower
    than Play, making their content-sized glass surfaces vertically oval. Keep
    all three existing transport controls square without affecting portrait. */
 @media (min-width: 480px) {
+    :root.liquid-glass-theme #panel-footer #playbar-controls,
+    :root.liquid-glass-theme #panel-footer #playbar-toggles {
+        top: 50% !important;
+        bottom: auto !important;
+        transform: translateY(-50%) !important;
+        align-items: center !important;
+    }
+
     :root.liquid-glass-theme #panel-footer #playbar-controls .btn {
         box-sizing: border-box !important;
-        width: 4.25rem !important;
-        min-width: 4.25rem !important;
-        height: 4.25rem !important;
-        min-height: 4.25rem !important;
+        width: 3.5rem !important;
+        min-width: 3.5rem !important;
+        height: 3.5rem !important;
+        min-height: 3.5rem !important;
         padding: 0 !important;
         border-radius: 50% !important;
-        line-height: 4.25rem !important;
+        line-height: 3.5rem !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
         text-align: center !important;
         vertical-align: middle !important;
+    }
+
+    :root.liquid-glass-theme #panel-footer #playbar-toggles .btn {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
     }
 
     :root.liquid-glass-theme #panel-footer #playbar-controls .btn i {
@@ -326,6 +384,49 @@
     filter: drop-shadow(0 2px 9px rgba(0,0,0,.50));
 }
 
+/* Playback's compact icon actions are a different group from the Library
+   playbar toggles. Native wide-screen sizing makes these pills; force equal
+   dimensions while leaving the optional labelled volume control flexible. */
+:root.liquid-glass-theme #togglebtns .btn:not(.volume-popup-btn) {
+    box-sizing: border-box !important;
+    width: 3rem !important;
+    min-width: 3rem !important;
+    max-width: 3rem !important;
+    height: 3rem !important;
+    min-height: 3rem !important;
+    max-height: 3rem !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+/* The desktop Playback column is constrained by the browser viewport. Keep its
+   compact bottom row circular but small enough to remain wholly on-screen when
+   browser chrome reduces the available height. Portrait keeps the larger
+   touch-friendly controls above. */
+@media (min-width: 480px) and (orientation: landscape) {
+    :root.liquid-glass-theme #togglebtns {
+        padding-top: .5rem !important;
+    }
+
+    :root.liquid-glass-theme #togglebtns .btn:not(.volume-popup-btn) {
+        width: 2.25rem !important;
+        min-width: 2.25rem !important;
+        max-width: 2.25rem !important;
+        height: 2.25rem !important;
+        min-height: 2.25rem !important;
+        max-height: 2.25rem !important;
+    }
+
+    :root.liquid-glass-theme #togglebtns .volume-popup-btn {
+        min-height: 2.25rem !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+}
+
 :root.liquid-glass-theme #playbtns .prev,
 :root.liquid-glass-theme #playbtns .next {
     width: 23vw !important;
@@ -387,4 +488,16 @@
 :root.liquid-glass-theme .siri-remote-selected * {
     color: inherit !important;
     text-shadow: 0 2px 6px rgba(0,0,0,.55) !important;
+}
+
+/* In the Library source menu, remote focus uses exactly the same row material
+   as mouse/keyboard hover. Album-grid focus keeps its more visible outline. */
+:root.liquid-glass-theme.siri-remote-navigating #viewswitch .btn.siri-remote-selected {
+    outline: none !important;
+    outline-offset: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: linear-gradient(90deg, rgba(255,255,255,.16), rgba(255,255,255,.06)) !important;
+    color: #fff !important;
+    box-shadow: inset 3px 0 0 rgba(255,255,255,.70) !important;
 }

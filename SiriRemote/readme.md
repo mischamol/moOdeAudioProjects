@@ -370,7 +370,7 @@ Previous/Next behavior.
   <img width="350" alt="Current touchpad focus inside the optimized Album view" src="assets/siri-navigation-album.png" />
   <img width="350" alt="Current selection in the compact Library source chooser" src="assets/siri-navigation-library-source.png" />
 </p>
-<sub>Current local interface with the optional Liquid Glass theme. Left: directional touchpad focus in the square-cover Album view. Right: the high-contrast Library source chooser after a double press on Menu/Back, focused on the active source.</sub>
+<sub>Current local interface with the optional Liquid Glass theme. Left: directional touchpad focus in the square-cover Album view. Right: the Library source chooser after a double press on Menu/Back, focused on the active source with the same row highlight used for pointer or keyboard focus in a network browser.</sub>
 
 The first-generation touch area is decoded in both axes. Swipe distance and
 average speed are combined into bounded momentum: a deliberate short swipe
@@ -444,8 +444,11 @@ colours readable underneath. The overlay is self-contained and works with
 every moOde theme. Its proportions match the optional Liquid Glass controls
 when that separate theme is selected.
 Regular-weight labels and bold primary values match the visual hierarchy of
-the moOde interface. On the tested 720 x 1280 portrait display, the overlay
-center is aligned exactly with the cover-art center.
+the moOde interface. A single rim avoids a doubled white outline. All overlay
+text uses the same multidirectional contrast shadow as moOde's metadata, while
+CSS symbols and outlines receive a matching drop shadow. On the tested 720 x
+1280 portrait display, the overlay center is aligned exactly with the cover-art
+center.
 
 - Play/Pause uses the resulting state returned by `toggle_play_pause`.
 - Volume uses the actual percentage returned by `set_volume`.

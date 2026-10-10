@@ -10,15 +10,25 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN SIRI REMOTE LIBRARY NAVIGATION -->"
 END = "<!-- END SIRI REMOTE LIBRARY NAVIGATION -->"
-SCRIPT = '<script src="js/siri-remote-navigation.js" defer></script>'
+SCRIPT = '<script src="js/siri-remote-navigation.js?v=4" defer></script>'
+PREVIOUS_SCRIPTS = [
+    '<script src="js/siri-remote-navigation.js" defer></script>',
+    '<script src="js/siri-remote-navigation.js?v=2" defer></script>',
+    '<script src="js/siri-remote-navigation.js?v=3" defer></script>',
+]
 SOURCE_ANCHOR = re.compile(r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$')
 BUILT_ANCHOR = re.compile(r'^\s*<script src="js/main\.min\.js(?:\?[^\"]*)?" defer></script>\s*$')
 
 
 def apply(text: str) -> str:
     if BEGIN in text or END in text:
-        if text.count(BEGIN) == text.count(END) == text.count(SCRIPT) == 1:
+        if text.count(BEGIN) != 1 or text.count(END) != 1:
+            raise ValueError("invalid Siri Remote navigation marker block in header.php")
+        if text.count(SCRIPT) == 1:
             return text
+        for previous in PREVIOUS_SCRIPTS:
+            if text.count(previous) == 1:
+                return text.replace(previous, SCRIPT, 1)
         raise ValueError("invalid Siri Remote navigation marker block in header.php")
     nl = "\r\n" if "\r\n" in text else "\n"
     lines = text.splitlines()
@@ -51,7 +61,7 @@ def remove(text: str) -> str:
     if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:
         raise ValueError("invalid Siri Remote navigation marker block in header.php")
     body = [line.strip() for line in lines[starts[0] + 1 : ends[0]] if line.strip()]
-    if body != [SCRIPT]:
+    if body != [SCRIPT] and body not in ([previous] for previous in PREVIOUS_SCRIPTS):
         raise ValueError("managed navigation include was changed; refusing to remove it")
     del lines[starts[0] : ends[0] + 1]
     return "".join(lines)

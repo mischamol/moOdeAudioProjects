@@ -10,8 +10,8 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN LIQUID GLASS THEME -->"
 END = "<!-- END LIQUID GLASS THEME -->"
-STYLESHEET = '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=10">'
-SCRIPT = '<script src="js/liquid-glass-theme.js?v=10" defer></script>'
+STYLESHEET = '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=14">'
+SCRIPT = '<script src="js/liquid-glass-theme.js?v=14" defer></script>'
 PREVIOUS_BODIES = [
     [
         '<link rel="stylesheet" href="css/liquid-glass-theme.css">',
@@ -48,6 +48,22 @@ PREVIOUS_BODIES = [
     [
         '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=9">',
         '<script src="js/liquid-glass-theme.js?v=9" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=10">',
+        '<script src="js/liquid-glass-theme.js?v=10" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=11">',
+        '<script src="js/liquid-glass-theme.js?v=11" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=12">',
+        '<script src="js/liquid-glass-theme.js?v=12" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=13">',
+        '<script src="js/liquid-glass-theme.js?v=13" defer></script>',
     ],
 ]
 SOURCE_ANCHOR = re.compile(r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$')

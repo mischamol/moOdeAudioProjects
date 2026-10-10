@@ -5,11 +5,20 @@ transparent rounded surfaces, tint-free glass controls, readable metadata over
 cover artwork, lightweight glass menus, optimized Library scrolling, and a matching transparent focus
 style when the optional SiriRemote navigation patch is installed. The Album,
 Radio, Playlist, Folder, and Tag views retain moOde's native compact playbar
-layout, while its existing Play/Pause, Next, volume, and toggle controls use the
-same round glass material as the fullscreen Playback controls. Footer controls
-have an explicit square minimum and the desktop Previous/Play/Next controls use
-fixed square boxes, preventing circular buttons from becoming vertically oval
-on wider phone, tablet, and computer layouts.
+layout, while ordinary action buttons, Play/Pause, Next, volume, and toggle
+controls use the same raised, tint-free glass material as the fullscreen
+Playback controls. Text and symbols receive matching contrast shadows so they
+remain legible over light and detailed cover artwork. Footer controls
+and fullscreen compact toggle controls use explicit square boxes. The desktop
+Previous/Play/Next controls also use fixed square boxes, preventing circular
+buttons from becoming vertically oval on wider phone, tablet, and computer
+layouts. Wide-screen footer controls are vertically centered and kept within
+the footer instead of touching or crossing the viewport edge. The compact
+fullscreen toggle row uses smaller true circles on landscape displays so it
+also remains fully visible when browser chrome reduces the viewport height.
+The theme never overrides moOde's button visibility, so unavailable or disabled
+layout actions stay hidden. Controls with a text label, such as Volume, may
+remain wider capsules.
 
 The project is independent of SiriRemote. It can be installed on a normal
 moOde system and selected from **Preferences → Appearance → Theme**, just like

@@ -85,10 +85,10 @@
                 radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.13), transparent 56%),
                 linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008));
             border: 1px solid rgba(255,255,255,.32);
-            box-shadow: 0 24px 54px rgba(0,0,0,.42),
-                        0 6px 15px rgba(0,0,0,.18),
-                        inset 3px 6px 6px rgba(255,255,255,.46),
-                        inset -6px -10px 16px rgba(0,0,0,.24);
+            box-shadow: inset 5px 8px 10px rgba(255,255,255,.46),
+                        inset -8px -14px 22px rgba(0,0,0,.24),
+                        0 24px 54px rgba(0,0,0,.42),
+                        0 6px 15px rgba(0,0,0,.18);
             -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%);
             backdrop-filter: blur(1px) saturate(155%) contrast(104%);
         }
@@ -124,15 +124,7 @@
             filter: blur(8px);
         }
         #siri-browser-overlay .siri-overlay-glass::before {
-            content: '';
-            position: absolute;
-            inset: 1.5%;
-            z-index: 2;
-            border-radius: 50%;
-            border-top: 2px solid rgba(255,255,255,.70);
-            border-left: 1px solid rgba(255,255,255,.32);
-            border-right: 1px solid transparent;
-            border-bottom: 1px solid rgba(0,0,0,.24);
+            content: none;
         }
         #siri-browser-overlay .siri-overlay-glass::after {
             content: '';
@@ -157,6 +149,12 @@
             align-items: center;
             justify-content: center;
             gap: .04em;
+            text-shadow:
+                -1px -1px 2px rgba(0,0,0,.92),
+                 1px -1px 2px rgba(0,0,0,.92),
+                -1px  1px 2px rgba(0,0,0,.92),
+                 1px  1px 2px rgba(0,0,0,.92),
+                 0 2px 7px rgba(0,0,0,.78);
             filter: drop-shadow(0 2px 9px rgba(0,0,0,.50));
         }
         #siri-browser-overlay .siri-overlay-label {
@@ -408,7 +406,9 @@
             content.appendChild(makeElement('siri-overlay-value', normalized.slice(7)));
         } else if (normalized.startsWith('BATTERY:')) {
             const battery = makeElement('siri-battery');
-            battery.appendChild(makeElement('', normalized.slice(8)));
+            battery.appendChild(makeElement(
+                'siri-battery-value', normalized.slice(8),
+            ));
             content.appendChild(battery);
         } else if (normalized.startsWith('DISABLED:')) {
             content.appendChild(makeElement('siri-overlay-label', 'Disabled'));
