@@ -98,11 +98,8 @@ Voor een gewone knopactie leest de daemon de rendererflags rechtstreeks en
 alleen-lezen uit moOde's SQLite-database. Daarmee vervalt ongeveer 0,2–0,3
 seconde PHP/HTTP-vertraging per knopdruk. Als de database niet beschikbaar is,
 valt de code automatisch terug op het bestaande alleen-lezen HTTP-endpoint. De
-uitkomst wordt maximaal 0,25 seconde bewaard; er draait geen extra polling.
-Optionele rendererflags die in een bepaalde moOde-versie ontbreken, gelden als
-inactief. Zo veroorzaakt bijvoorbeeld een verwijderde Deezer-integratie geen
-HTTP-fallback bij iedere knopdruk. Als beide controles mislukken, wordt de
-gewone actie voor de zekerheid genegeerd.
+uitkomst wordt maximaal 0,25 seconde bewaard; er draait geen extra polling. Als
+beide controles mislukken, wordt de gewone actie voor de zekerheid genegeerd.
 Instellingen:
 
 ```text
@@ -121,12 +118,14 @@ bladeren wordt de oude `.active`-achtergrond tijdelijk verborgen, zodat precies
 alleen moOde's normale markering over. In Playback blijft een fysieke click op
 de linker- of rechterhelft Previous/Next uitvoeren.
 
-De Gen-1-touchdata wordt in beide assen gedecodeerd. Afstand bepaalt het
-basisaantal stappen; een begrensde projectie van de gemiddelde snelheid laat
-een snelle flick meerdere items overbruggen, met maximaal acht stappen. De
-drempels zijn instelbaar met `SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_STEP_DISTANCE`,
-`SIRI_SWIPE_MOMENTUM_MIN_SPEED`, `SIRI_SWIPE_MOMENTUM_SECONDS`,
-`SIRI_SWIPE_MOMENTUM_MAX_DISTANCE`,
+De Gen-1-touchdata wordt in beide assen gedecodeerd. Afstand en gemiddelde
+snelheid bepalen samen een begrensd momentum: een rustige korte swipe gaat één
+item verder en een snelle lange swipe maximaal acht. Alle stappen van één
+gesture worden als één X11-batch verstuurd; pas de eindselectie wordt vloeiend
+in beeld gecentreerd. De veegdrempels zijn instelbaar met
+`SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_STEP_DISTANCE`,
+`SIRI_SWIPE_MAX_STEPS`, `SIRI_SWIPE_MOMENTUM_MIN_SPEED`,
+`SIRI_SWIPE_MOMENTUM_SECONDS`, `SIRI_SWIPE_MOMENTUM_MAX_DISTANCE`,
 `SIRI_SWIPE_MAX_SECONDS` en `SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. De klikverdeling blijft instelbaar met
 `SIRI_TOUCH_X_SPLIT`, `SIRI_TOUCH_DEAD_ZONE` en
 `SIRI_TOUCH_MAX_AGE_SECONDS`.
@@ -172,6 +171,20 @@ niet weten welke knop de wake-up veroorzaakte. Dankzij de begrensde reconnect en
 de supervisietijd van 2000 ms blijven de volgende knoppen wel reageren; na het
 verbinden toont een volgende druk op Microfoon/Siri de batterijstand.
 
+## Optioneel los Liquid Glass-thema
+
+Algemene vormgeving van moOde hoort niet bij de verantwoordelijkheid van de
+Siri Remote-daemon. Deze CSS/JavaScript is daarom verplaatst naar het zelfstandig
+installeerbare [LiquidGlassTheme](../LiquidGlassTheme/readme.md). Het thema
+registreert zichzelf in moOde's bestaande themakiezer en kan ook zonder
+SiriRemote worden gebruikt.
+
+SiriRemote bevat alleen nog de functionele navigatiefocus en zijn ronde
+feedbackoverlay. Met een standaard moOde-thema gebruikt de focus de normale
+accentkleur. Liquid Glass geeft dezelfde focus optioneel een tintvrije glaslaag
+met witte rand. De feedbackoverlay blijft in SiriRemote, werkt met ieder thema
+en is qua verhoudingen afgestemd op Liquid Glass wanneer dat thema actief is.
+
 ## Schermoverlay
 
 De daemon toont zonder compositor of extra package een ronde schermoverlay:
@@ -197,20 +210,19 @@ daadwerkelijk via ATT uitgelezen; pas daarna wordt de melding getoond en het
 volgende interval gekozen. Er zijn geen parallelle ATT-reads.
 De standaardduur is één seconde en is instelbaar met
 `SIRI_OVERLAY_SECONDS`; zet `SIRI_OVERLAY=no` om de overlay uit te schakelen.
-De nep-transparante achtergrond wordt met de reeds aanwezige X11-, Cairo- en
-Lato-componenten opgebouwd. Binnen de cirkel wordt de vastgelegde cover eerst
-verkleind en weer vergroot voor een snelle frosted-glassvervaging. Een antraciete
-tint van 36% en een subtiele diagonale licht- en schaduwlaag vormen het glas;
-een dunne, gedeeltelijk transparante witte rand scheidt de cirkel van de
-coverart. Labels in normale letterdikte en vette
-hoofdwaarden volgen de visuele hiërarchie van
-moOde. Op het geteste 720 x 1280-portretscherm valt het middelpunt van de
-overlay exact samen met het middelpunt van de coverart. Na het verbergen krijgt
-Chromium kort tijd om de achtergrond opnieuw te
-tekenen, zodat een oude overlay niet onder de volgende melding blijft staan.
-Bij het starten warmt de overlayworker X11, Cairo, het Lato-lettertype en het
-glasschalingspad onzichtbaar op. Dit is gereed voordat de afstandsbediening klaar
-is en voorkomt dat juist de eerste echte overlay merkbaar later verschijnt.
+De daemon publiceert de overlaystatus via een uitsluitend op loopback
+bereikbaar HTTP-endpoint. Het bestaande lokale Chromium-element rendert de
+cirkel rechtstreeks boven de actuele moOde-interface; een compositor of extra
+package is niet nodig. De huidige cover wordt binnen de lens vergroot en
+gecombineerd met gerichte inset-schaduwen, highlights, een dunne gedeeltelijk
+transparante witte rand en één pixel backdrop-blur. De lens voegt geen grijze
+kleurzweem toe. Labels en vette hoofdwaarden
+volgen de visuele hiërarchie van moOde. Op het geteste 720 x 1280-portretscherm
+valt het middelpunt van de overlay exact samen met het middelpunt van de
+coverart. Chromium hergebruikt steeds hetzelfde overlayelement en verbergt dit
+direct zodra de nieuwste gepubliceerde status daarom vraagt. Het endpoint is
+gereed voordat de afstandsbediening commando's verwerkt, zodat de long-poll al
+voor de eerste echte melding actief kan zijn.
 De shutdown-overlay bevat geen apart tekstlabel. Het vergrote powersymbool en
 het aftellende getal staan samen in het midden. Het laatste frame met `0`
 gebruikt exact dezelfde positie en grootte als de aftelling. Er worden geen

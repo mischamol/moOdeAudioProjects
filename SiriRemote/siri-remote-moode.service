@@ -1,8 +1,8 @@
 [Unit]
 Description=Siri Remote control for moOde Audio
 Documentation=https://github.com/Yanndroid/SiriRemote-Linux
-Wants=bluetooth.service
-After=bluetooth.service network.target
+Wants=bluetooth.target
+After=bluetooth.target network.target
 
 [Service]
 Type=simple

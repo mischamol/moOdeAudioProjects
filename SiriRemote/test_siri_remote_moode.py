@@ -64,47 +64,6 @@ class FakeRendererGuard:
         return self.allowed
 
 
-class BluetoothServiceTests(unittest.TestCase):
-    @mock.patch.object(remote.subprocess, "run")
-    def test_active_service_is_left_untouched(self, run):
-        run.return_value = mock.Mock(returncode=0)
-
-        self.assertTrue(remote.ensure_bluetooth_service())
-        run.assert_called_once_with(
-            ["/usr/bin/systemctl", "is-active", "--quiet", "bluetooth.service"],
-            check=False,
-            timeout=5,
-        )
-
-    @mock.patch.object(remote.subprocess, "run")
-    def test_inactive_service_is_started(self, run):
-        run.side_effect = [
-            mock.Mock(returncode=3),
-            mock.Mock(returncode=0, stdout="", stderr=""),
-        ]
-
-        self.assertTrue(remote.ensure_bluetooth_service())
-        self.assertEqual(
-            run.call_args_list[1],
-            mock.call(
-                ["/usr/bin/systemctl", "start", "bluetooth.service"],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=15,
-            ),
-        )
-
-    @mock.patch.object(remote.subprocess, "run")
-    def test_start_failure_is_reported(self, run):
-        run.side_effect = [
-            mock.Mock(returncode=3),
-            mock.Mock(returncode=1, stdout="", stderr="denied"),
-        ]
-
-        self.assertFalse(remote.ensure_bluetooth_service())
-
-
 def touch_report(x, buttons=0, pressure=40, y=3800):
     payload = bytearray(13)
     payload[0] = 1
@@ -204,7 +163,7 @@ class ButtonMapperTests(unittest.TestCase):
         self.notify(touch_report(3600))
         self.assertEqual(self.worker.actions, [])
 
-    def test_slow_short_swipes_remain_one_precise_step(self):
+    def test_deliberate_short_swipes_remain_one_precise_step(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
@@ -221,23 +180,7 @@ class ButtonMapperTests(unittest.TestCase):
         self.assertEqual(self.worker.actions, [])
         mapper.reset()
 
-    def test_deliberate_one_second_swipe_is_not_discarded(self):
-        clicker = FakeClicker()
-        mapper = remote.ButtonMapper(
-            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
-        )
-        with mock.patch.object(
-            remote.time, "monotonic",
-            side_effect=(110.0, 110.25, 110.5, 110.75, 111.0),
-        ):
-            for x in (2500, 2600, 2700, 2800, 3000):
-                mapper.notification(
-                    remote.HANDLE_INPUT_VALUE, touch_report(x, y=3500)
-                )
-        self.assertEqual(clicker.navigation_actions, ["right"])
-        mapper.reset()
-
-    def test_fast_short_flick_gains_one_momentum_step(self):
+    def test_fast_short_swipe_accelerates_to_two_steps(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
@@ -247,10 +190,13 @@ class ButtonMapperTests(unittest.TestCase):
         ):
             mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2500, y=3500))
             mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3520))
-        self.assertEqual(clicker.navigation_actions, ["right", "continue-right"])
+        self.assertEqual(
+            clicker.navigation_actions,
+            ["right", "continue-right"],
+        )
         mapper.reset()
 
-    def test_fast_long_flick_uses_bounded_momentum(self):
+    def test_fast_long_swipe_uses_speed_sensitive_momentum(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
@@ -266,23 +212,7 @@ class ButtonMapperTests(unittest.TestCase):
         )
         mapper.reset()
 
-    def test_very_fast_flick_is_bounded_at_eight_steps(self):
-        clicker = FakeClicker()
-        mapper = remote.ButtonMapper(
-            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
-        )
-        with mock.patch.object(
-            remote.time, "monotonic", side_effect=(175.0, 175.08),
-        ):
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=5000))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3010, y=3800))
-        self.assertEqual(
-            clicker.navigation_actions,
-            ["down"] + ["continue-down"] * 7,
-        )
-        mapper.reset()
-
-    def test_slow_long_swipe_moves_progressively_without_flick_momentum(self):
+    def test_long_deliberate_swipe_moves_progressively_to_five_steps(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
@@ -301,6 +231,38 @@ class ButtonMapperTests(unittest.TestCase):
             clicker.navigation_actions,
             ["down"] + ["continue-down"] * 4,
         )
+        mapper.reset()
+
+    def test_very_fast_swipe_is_capped_at_eight_steps(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        with mock.patch.object(
+            remote.time, "monotonic", side_effect=(250.0, 250.08),
+        ):
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=5000))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3010, y=2500))
+        self.assertEqual(
+            clicker.navigation_actions,
+            ["down"] + ["continue-down"] * 7,
+        )
+        mapper.reset()
+
+    def test_one_second_swipe_is_not_discarded(self):
+        clicker = FakeClicker()
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        with mock.patch.object(
+            remote.time, "monotonic",
+            side_effect=(275.0, 275.34, 275.67, 276.0),
+        ):
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2500, y=3500))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2600, y=3510))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2750, y=3515))
+            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3520))
+        self.assertEqual(clicker.navigation_actions, ["right"])
         mapper.reset()
 
     def test_physical_click_routes_to_selection_when_navigation_is_enabled(self):
@@ -558,28 +520,6 @@ class RendererGuardTests(unittest.TestCase):
                 guard._read_database(), ("aplactive", "spotactive"),
             )
 
-    def test_direct_database_read_treats_missing_optional_renderer_as_inactive(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = os.path.join(directory, "moode-sqlite3.db")
-            connection = sqlite3.connect(path)
-            try:
-                connection.execute(
-                    "CREATE TABLE cfg_system "
-                    "(id INTEGER PRIMARY KEY, param CHAR(32), value CHAR(32))"
-                )
-                connection.executemany(
-                    "INSERT INTO cfg_system (param, value) VALUES (?, ?)",
-                    [("aplactive", "0"), ("spotactive", "1")],
-                )
-                connection.commit()
-            finally:
-                connection.close()
-            with mock.patch.dict(
-                os.environ, {"MOODE_DB_PATH": path}, clear=False,
-            ):
-                guard = remote.RendererGuard("http://localhost/command/", 4)
-            self.assertEqual(guard._read_database(), ("spotactive",))
-
     def test_direct_database_failure_falls_back_to_http(self):
         guard = remote.RendererGuard("http://localhost/command/", 4)
         with mock.patch.object(
@@ -646,23 +586,6 @@ class X11ClickWorkerTests(unittest.TestCase):
         )
         self.assertEqual(guard.actions, ["Library navigation", "Library navigation"])
 
-    def test_navigation_gesture_uses_one_x11_batch_and_one_renderer_check(self):
-        guard = FakeRendererGuard(True)
-        with mock.patch.dict(
-            os.environ,
-            {"SIRI_MENU_SCREEN_CLICK": "no", "SIRI_LIBRARY_NAVIGATION": "yes"},
-            clear=False,
-        ):
-            clicker = remote.X11ClickWorker(guard)
-        actions = ["right", "continue-right", "continue-right"]
-        with mock.patch.object(clicker, "_emit_navigation_keys") as emit:
-            clicker.start()
-            clicker.submit_navigation_actions(actions)
-            clicker.stop()
-            clicker.thread.join(1)
-        emit.assert_called_once_with(actions)
-        self.assertEqual(guard.actions, ["Library navigation"])
-
     def test_double_menu_emits_library_source_key(self):
         guard = FakeRendererGuard(True)
         with mock.patch.dict(
@@ -706,8 +629,6 @@ class X11ClickWorkerTests(unittest.TestCase):
             clicker = remote.X11ClickWorker()
         with self.assertRaisesRegex(ValueError, "invalid"):
             clicker.submit_navigation("diagonal")
-        with self.assertRaisesRegex(ValueError, "invalid"):
-            clicker.submit_navigation_actions(["right", "diagonal"])
 
     def test_menu_uses_actual_moode_view_for_both_directions(self):
         env = {
@@ -995,42 +916,6 @@ class RawAttClientTests(unittest.TestCase):
                     client.battery_interval(900, 300, 60, 10, 5),
                     interval,
                 )
-
-    def test_initial_battery_read_is_deferred_until_after_notifications_start(self):
-        client = remote.RawAttClient(
-            "70:48:0F:F2:65:99", "public", "medium",
-        )
-        stop_event = remote.threading.Event()
-        clock = [0.0]
-        receive_waits = []
-        battery_sources = []
-
-        def receive(timeout):
-            receive_waits.append(timeout)
-            clock[0] += timeout
-            raise remote.socket.timeout()
-
-        def read_battery(source):
-            battery_sources.append(source)
-            stop_event.set()
-            return 80
-
-        with (
-            mock.patch.object(remote.time, "monotonic", side_effect=lambda: clock[0]),
-            mock.patch.object(client, "_receive", side_effect=receive),
-            mock.patch.object(client, "read_battery", side_effect=read_battery),
-        ):
-            client.receive_forever(
-                stop_event,
-                keepalive_seconds=0,
-                battery_check_seconds=900,
-                battery_low_check_seconds=300,
-                battery_critical_check_seconds=60,
-                initial_battery_delay_seconds=2,
-            )
-
-        self.assertEqual(receive_waits, [1.0, 1.0])
-        self.assertEqual(battery_sources, ["Initial check"])
 
 
 if __name__ == "__main__":

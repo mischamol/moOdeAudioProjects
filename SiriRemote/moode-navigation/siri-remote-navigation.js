@@ -12,9 +12,12 @@
     ].join(', ');
     const PLAYBACK_RETURN_MS = 5000;
     const CONTINUATION_BATCH_DELAY_MS = 12;
-    const SCROLL_SETTLE_DELAY_MS = 20;
+    const SOURCE_CONTINUATION_DELAY_MS = 55;
+    const SCROLL_SETTLE_DELAY_MS = 0;
     const STARTUP_RETURN_POLL_MS = 500;
     const STARTUP_RETURN_WINDOW_MS = 120000;
+    const OVERLAY_RETRY_MS = 150;
+    const OVERLAY_URL = 'http://127.0.0.1:8765/overlay';
     const LOCAL_DISPLAY_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
     const IS_LOCAL_DISPLAY = LOCAL_DISPLAY_HOSTS.has(window.location.hostname);
     let selected = null;
@@ -53,8 +56,412 @@
         :root.siri-remote-navigating #viewswitch .btn:not(.${SELECTED_CLASS}) .pane {
             display: none !important;
         }
+
+        #siri-browser-overlay {
+            position: fixed;
+            z-index: 2147483647;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: none;
+        }
+        #siri-browser-overlay.siri-overlay-visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        #siri-browser-overlay .siri-overlay-glass {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,.97);
+            text-align: center;
+            font-family: Lato, sans-serif;
+            background:
+                radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.22), transparent 34%),
+                radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.13), transparent 56%),
+                linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008));
+            border: 1px solid rgba(255,255,255,.32);
+            box-shadow: 0 24px 54px rgba(0,0,0,.42),
+                        0 6px 15px rgba(0,0,0,.18),
+                        inset 3px 6px 6px rgba(255,255,255,.46),
+                        inset -6px -10px 16px rgba(0,0,0,.24);
+            -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%);
+            backdrop-filter: blur(1px) saturate(155%) contrast(104%);
+        }
+        #siri-browser-overlay .siri-overlay-lens {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border-radius: 50%;
+            background-repeat: no-repeat;
+            transform: scale(1.060);
+            transform-origin: center;
+            filter: saturate(1.13) contrast(1.055) brightness(1.025);
+            opacity: .94;
+        }
+        #siri-browser-overlay .siri-overlay-lens::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background:
+                radial-gradient(ellipse at 31% 11%, rgba(255,255,255,.21), transparent 41%),
+                radial-gradient(ellipse at 70% 93%, rgba(0,0,0,.11), transparent 58%);
+        }
+        #siri-browser-overlay .siri-overlay-lens::after {
+            content: '';
+            position: absolute;
+            left: 15%;
+            right: 15%;
+            bottom: 2.5%;
+            height: 14%;
+            border-radius: 50%;
+            background: radial-gradient(ellipse, rgba(255,255,255,.17), transparent 70%);
+            filter: blur(8px);
+        }
+        #siri-browser-overlay .siri-overlay-glass::before {
+            content: '';
+            position: absolute;
+            inset: 1.5%;
+            z-index: 2;
+            border-radius: 50%;
+            border-top: 2px solid rgba(255,255,255,.70);
+            border-left: 1px solid rgba(255,255,255,.32);
+            border-right: 1px solid transparent;
+            border-bottom: 1px solid rgba(0,0,0,.24);
+        }
+        #siri-browser-overlay .siri-overlay-glass::after {
+            content: '';
+            position: absolute;
+            z-index: 2;
+            left: 16%;
+            top: 7%;
+            width: 46%;
+            height: 14%;
+            border-radius: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,.52), rgba(255,255,255,.06) 58%, transparent);
+            filter: blur(3px);
+            transform: rotate(-12deg);
+        }
+        #siri-browser-overlay .siri-overlay-content {
+            position: relative;
+            z-index: 3;
+            width: 78%;
+            height: 78%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: .04em;
+            filter: drop-shadow(0 2px 9px rgba(0,0,0,.50));
+        }
+        #siri-browser-overlay .siri-overlay-label {
+            font-size: clamp(1.8rem, 7.6vw, 4rem);
+            line-height: 1.04;
+            font-weight: 700;
+        }
+        #siri-browser-overlay .siri-overlay-value {
+            font-size: clamp(3.6rem, 16vw, 7.8rem);
+            line-height: .98;
+            font-weight: 800;
+        }
+        #siri-browser-overlay .siri-overlay-renderer {
+            max-width: 100%;
+            font-size: clamp(2rem, 8.5vw, 4.2rem);
+            line-height: 1.02;
+            font-weight: 800;
+        }
+        #siri-browser-overlay .siri-glyph {
+            position: relative;
+            width: 58%;
+            height: 58%;
+        }
+        #siri-browser-overlay .siri-play::before,
+        #siri-browser-overlay .siri-next .triangle,
+        #siri-browser-overlay .siri-previous .triangle {
+            content: '';
+            position: absolute;
+            top: 16%;
+            height: 68%;
+            background: currentColor;
+        }
+        #siri-browser-overlay .siri-play::before {
+            left: 25%;
+            width: 56%;
+            clip-path: polygon(0 0, 100% 50%, 0 100%);
+        }
+        #siri-browser-overlay .siri-pause::before,
+        #siri-browser-overlay .siri-pause::after {
+            content: '';
+            position: absolute;
+            top: 15%;
+            width: 21%;
+            height: 70%;
+            border-radius: .35rem;
+            background: currentColor;
+        }
+        #siri-browser-overlay .siri-pause::before { left: 22%; }
+        #siri-browser-overlay .siri-pause::after { right: 22%; }
+        #siri-browser-overlay .siri-next .triangle {
+            width: 36%;
+            clip-path: polygon(0 0, 100% 50%, 0 100%);
+        }
+        #siri-browser-overlay .siri-next .triangle.one { left: 8%; }
+        #siri-browser-overlay .siri-next .triangle.two { left: 38%; }
+        #siri-browser-overlay .siri-next .bar,
+        #siri-browser-overlay .siri-previous .bar {
+            position: absolute;
+            top: 16%;
+            width: 9%;
+            height: 68%;
+            border-radius: .2rem;
+            background: currentColor;
+        }
+        #siri-browser-overlay .siri-next .bar { right: 8%; }
+        #siri-browser-overlay .siri-previous .triangle {
+            width: 36%;
+            clip-path: polygon(100% 0, 0 50%, 100% 100%);
+        }
+        #siri-browser-overlay .siri-previous .triangle.one { right: 8%; }
+        #siri-browser-overlay .siri-previous .triangle.two { right: 38%; }
+        #siri-browser-overlay .siri-previous .bar { left: 8%; }
+        #siri-browser-overlay .siri-battery {
+            position: relative;
+            width: 68%;
+            height: 31%;
+            border: clamp(5px, 1.4vw, 10px) solid currentColor;
+            border-radius: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(2.5rem, 11vw, 5.4rem);
+            font-weight: 800;
+        }
+        #siri-browser-overlay .siri-battery::after {
+            content: '';
+            position: absolute;
+            right: -8%;
+            width: 5.5%;
+            height: 42%;
+            border-radius: 0 .45rem .45rem 0;
+            background: currentColor;
+        }
+        #siri-browser-overlay .siri-power {
+            position: relative;
+            width: 76%;
+            height: 76%;
+            display: grid;
+            place-items: center;
+        }
+        #siri-browser-overlay .siri-power svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #siri-browser-overlay .siri-power span {
+            position: relative;
+            top: 5%;
+            font-size: clamp(4.2rem, 18vw, 8.4rem);
+            line-height: 1;
+            font-weight: 800;
+        }
     `;
     document.head.appendChild(style);
+
+    let overlayVersion = -1;
+    let overlayElement = null;
+
+    function makeElement(className, text) {
+        const element = document.createElement('div');
+        element.className = className;
+        if (text !== undefined) element.textContent = text;
+        return element;
+    }
+
+    function ensureOverlay() {
+        if (overlayElement && overlayElement.isConnected) return overlayElement;
+        overlayElement = makeElement('');
+        overlayElement.id = 'siri-browser-overlay';
+        overlayElement.setAttribute('aria-hidden', 'true');
+        const glass = makeElement('siri-overlay-glass');
+        glass.appendChild(makeElement('siri-overlay-lens'));
+        glass.appendChild(makeElement('siri-overlay-content'));
+        overlayElement.appendChild(glass);
+        document.body.appendChild(overlayElement);
+        return overlayElement;
+    }
+
+    function overlayContent() {
+        return ensureOverlay().querySelector('.siri-overlay-content');
+    }
+
+    function positionOverlay() {
+        const overlay = ensureOverlay();
+        const selectors = [
+            '#coverart-url img', '#coverart-url', '#playback-cover img',
+            '#playback-cover', '#coverart', '.coverart img',
+        ];
+        let cover = null;
+        for (const selector of selectors) {
+            cover = Array.from(document.querySelectorAll(selector)).find((candidate) => {
+                const rect = candidate.getBoundingClientRect();
+                return rect.width > 80 && rect.height > 80 && visible(candidate);
+            });
+            if (cover) break;
+        }
+        let size;
+        let centerX;
+        let centerY;
+        if (cover) {
+            const rect = cover.getBoundingClientRect();
+            size = Math.min(rect.width, rect.height) * .88;
+            centerX = rect.left + rect.width / 2;
+            centerY = rect.top + rect.height / 2;
+        } else {
+            size = Math.min(window.innerWidth, window.innerHeight) * .68;
+            centerX = window.innerWidth / 2;
+            centerY = window.innerHeight * .29375;
+        }
+        size = Math.max(180, Math.min(size, window.innerWidth * .94));
+        const overlayLeft = centerX - size / 2;
+        const overlayTop = centerY - size / 2;
+        overlay.style.width = `${size}px`;
+        overlay.style.height = `${size}px`;
+        overlay.style.left = `${overlayLeft}px`;
+        overlay.style.top = `${overlayTop}px`;
+
+        const lens = overlay.querySelector('.siri-overlay-lens');
+        const coverImage = cover && (
+            cover.matches('img') ? cover : cover.querySelector('img')
+        );
+        const imageUrl = coverImage && (coverImage.currentSrc || coverImage.src);
+        if (lens && coverImage && imageUrl) {
+            const imageRect = coverImage.getBoundingClientRect();
+            lens.style.backgroundImage = `url(${JSON.stringify(imageUrl)})`;
+            lens.style.backgroundSize = `${imageRect.width}px ${imageRect.height}px`;
+            lens.style.backgroundPosition =
+                `${imageRect.left - overlayLeft}px ${imageRect.top - overlayTop}px`;
+        } else if (lens) {
+            lens.style.backgroundImage = 'none';
+        }
+    }
+
+    function symbol(kind) {
+        const glyph = makeElement(`siri-glyph siri-${kind}`);
+        if (kind === 'next' || kind === 'previous') {
+            glyph.appendChild(makeElement('triangle one'));
+            glyph.appendChild(makeElement('triangle two'));
+            glyph.appendChild(makeElement('bar'));
+        }
+        return glyph;
+    }
+
+    function powerSymbol(number) {
+        const power = makeElement('siri-power');
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.innerHTML = '<path d="M31 21a38 38 0 1 0 38 0" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"/><path d="M50 8v39" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>';
+        power.appendChild(svg);
+        const digit = document.createElement('span');
+        digit.textContent = number;
+        power.appendChild(digit);
+        return power;
+    }
+
+    function rendererName(rawName) {
+        const names = {
+            'AIRPLAY': 'AirPlay',
+            'BLUETOOTH': 'Bluetooth',
+            'SPOTIFY': 'Spotify',
+            'DEEZER': 'Deezer',
+            'SQUEEZELITE': 'Squeezelite',
+            'PLEXAMP': 'Plexamp',
+            'ROONBRIDGE': 'RoonBridge',
+            'AUDIO INPUT': 'Audio Input',
+            'MULTIROOM RECEIVER': 'Multiroom\nReceiver',
+            'RENDERER': 'Renderer',
+        };
+        return names[rawName] || rawName;
+    }
+
+    function renderOverlay(text) {
+        const overlay = ensureOverlay();
+        const content = overlayContent();
+        content.replaceChildren();
+        const normalized = String(text || '').trim().toUpperCase();
+        if (normalized === 'PLAY') {
+            content.appendChild(symbol('play'));
+        } else if (normalized === 'PAUSE') {
+            content.appendChild(symbol('pause'));
+        } else if (normalized === 'NEXT') {
+            content.appendChild(symbol('next'));
+        } else if (normalized === 'PREVIOUS') {
+            content.appendChild(symbol('previous'));
+        } else if (normalized.startsWith('VOLUME:')) {
+            content.appendChild(makeElement('siri-overlay-label', 'Volume'));
+            content.appendChild(makeElement('siri-overlay-value', normalized.slice(7)));
+        } else if (normalized.startsWith('BATTERY:')) {
+            const battery = makeElement('siri-battery');
+            battery.appendChild(makeElement('', normalized.slice(8)));
+            content.appendChild(battery);
+        } else if (normalized.startsWith('DISABLED:')) {
+            content.appendChild(makeElement('siri-overlay-label', 'Disabled'));
+            const renderer = makeElement(
+                'siri-overlay-renderer', rendererName(normalized.slice(9)),
+            );
+            renderer.style.whiteSpace = 'pre-line';
+            content.appendChild(renderer);
+        } else if (normalized.startsWith('SHUTDOWN:')) {
+            content.appendChild(powerSymbol(normalized.slice(9)));
+        } else if (normalized === 'SHUTTING DOWN') {
+            content.appendChild(powerSymbol('0'));
+        } else {
+            content.appendChild(makeElement('siri-overlay-renderer', normalized));
+        }
+        positionOverlay();
+    }
+
+    function applyOverlayState(state) {
+        const overlay = ensureOverlay();
+        if (!state.visible) {
+            overlay.classList.remove('siri-overlay-visible');
+            return;
+        }
+        renderOverlay(state.text);
+        overlay.classList.add('siri-overlay-visible');
+    }
+
+    function pollOverlay() {
+        if (!IS_LOCAL_DISPLAY) return;
+        // This is a long-poll: the daemon holds the request until its state
+        // changes. A button event therefore wakes Chromium immediately instead
+        // of waiting for the next fixed polling interval.
+        fetch(`${OVERLAY_URL}?since=${overlayVersion}`, {cache: 'no-store'})
+            .then((response) => {
+                if (!response.ok) throw new Error(`overlay HTTP ${response.status}`);
+                return response.json();
+            })
+            .then((state) => {
+                if (Number.isInteger(state.version) && state.version !== overlayVersion) {
+                    overlayVersion = state.version;
+                    applyOverlayState(state);
+                }
+            })
+            .then(() => pollOverlay())
+            .catch(() => window.setTimeout(pollOverlay, OVERLAY_RETRY_MS));
+    }
+
+    window.addEventListener('resize', function () {
+        if (overlayElement && overlayElement.classList.contains('siri-overlay-visible')) {
+            positionOverlay();
+        }
+    });
 
     function visible(element) {
         const rect = element.getBoundingClientRect();
@@ -109,7 +516,7 @@
             selected.scrollIntoView({
                 block: 'center',
                 inline: 'nearest',
-                behavior: 'smooth',
+                behavior: 'auto',
             });
         }
     }
@@ -264,6 +671,16 @@
 
     function runContinuations() {
         continuationTimer = null;
+        if (selected && selected.matches(SOURCE_SELECTOR) && continuationQueue.length) {
+            move(continuationQueue.shift(), true, false);
+            scrollToSelection();
+            if (continuationQueue.length) {
+                continuationTimer = window.setTimeout(
+                    runContinuations, SOURCE_CONTINUATION_DELAY_MS,
+                );
+            }
+            return;
+        }
         while (continuationQueue.length) {
             move(continuationQueue.shift(), true, false);
         }
@@ -293,12 +710,9 @@
             return false;
         }
         if (current.matches(SOURCE_SELECTOR)) {
-            // A long/flick gesture remains one precise step in the compact
-            // Library source chooser; continuation events are only for grids.
-            if (continuation) {
-                schedulePlaybackReturn();
-                return true;
-            }
+            // Keep a short swipe precise, but also consume the continuation
+            // events from a longer/faster gesture. This lets one flick travel
+            // across the complete compact Library source chooser.
             if (direction === 'left') direction = 'up';
             if (direction === 'right') direction = 'down';
         }
@@ -421,4 +835,5 @@
     }).observe(document.getElementById('content'), {childList: true, subtree: true});
 
     watchStartupAutoplay();
+    pollOverlay();
 }());

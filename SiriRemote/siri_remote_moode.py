@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import errno
+import http.server
 import json
 import logging
 import os
@@ -1860,17 +1861,136 @@ class X11Overlay:
         self.show_sequence([(text, duration)], cancel_event)
 
 
-class OverlayWorker:
-    """Latest-wins, interruptible X11 overlay worker."""
+class BrowserOverlay:
+    """Expose overlay state to the kiosk browser over loopback HTTP."""
 
-    def __init__(self, overlay: X11Overlay | None = None) -> None:
+    HOST = "127.0.0.1"
+    PORT = 8765
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.changed = threading.Condition(self.lock)
+        self.state = {"version": 0, "visible": False, "text": ""}
+        self.server: http.server.ThreadingHTTPServer | None = None
+        self.server_thread: threading.Thread | None = None
+
+    def _snapshot(self) -> bytes:
+        with self.lock:
+            return json.dumps(self.state, separators=(",", ":")).encode("utf-8")
+
+    def _publish(self, text: str | None) -> None:
+        with self.changed:
+            self.state = {
+                "version": int(self.state["version"]) + 1,
+                "visible": text is not None,
+                "text": "" if text is None else text.strip().upper()[:64],
+            }
+            self.changed.notify_all()
+
+    def _wait_for_change(self, since: int, timeout: float = 25.0) -> bytes:
+        """Return immediately after a new state, otherwise refresh periodically."""
+        with self.changed:
+            if int(self.state["version"]) == since:
+                self.changed.wait(timeout)
+            return json.dumps(self.state, separators=(",", ":")).encode("utf-8")
+
+    def warm_up(self) -> None:
+        if self.server is not None:
+            return
+        owner = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                if self.path.partition("?")[0] != "/overlay":
+                    self.send_error(404)
+                    return
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                try:
+                    since = int(query.get("since", ["-1"])[0])
+                except ValueError:
+                    since = -1
+                body = owner._wait_for_change(since)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store, max-age=0")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Private-Network", "true")
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, _format: str, *_args) -> None:
+                return
+
+        self.server = http.server.ThreadingHTTPServer((self.HOST, self.PORT), Handler)
+        self.server.daemon_threads = True
+        self.server_thread = threading.Thread(
+            target=self.server.serve_forever,
+            name="moode-browser-overlay-http",
+            daemon=True,
+        )
+        self.server_thread.start()
+        LOG.info(
+            "Browser overlay endpoint ready at http://%s:%d/overlay",
+            self.HOST,
+            self.PORT,
+        )
+
+    def close(self) -> None:
+        server = self.server
+        self.server = None
+        with self.changed:
+            self.changed.notify_all()
+        if server is not None:
+            server.shutdown()
+            server.server_close()
+        if self.server_thread is not None:
+            self.server_thread.join(timeout=1)
+            self.server_thread = None
+
+    def show_sequence(
+        self,
+        frames: list[tuple[str, float]],
+        cancel_event: threading.Event | None = None,
+    ) -> None:
+        try:
+            for text, duration in frames:
+                clean_text = text.strip().upper()[:64]
+                is_visible = clean_text != "HIDE"
+                self._publish(clean_text if is_visible else None)
+                wait_seconds = max(0.05, duration)
+                if cancel_event is None:
+                    time.sleep(wait_seconds)
+                elif cancel_event.wait(wait_seconds):
+                    break
+        finally:
+            self._publish(None)
+
+    def show(
+        self,
+        text: str,
+        duration: float = 2.5,
+        cancel_event: threading.Event | None = None,
+    ) -> None:
+        self.show_sequence([(text, duration)], cancel_event)
+
+
+class OverlayWorker:
+    """Latest-wins worker that publishes OSD state to the local browser."""
+
+    def __init__(self, overlay=None) -> None:
         self.enabled = env("SIRI_OVERLAY", "yes").lower() in (
             "1", "yes", "true", "on",
         )
         self.duration = float(env("SIRI_OVERLAY_SECONDS", "1"))
         if self.duration <= 0:
             raise ValueError("SIRI_OVERLAY_SECONDS must be greater than zero")
-        self.overlay = overlay or X11Overlay()
+        browser_integration = env("SIRI_LIBRARY_NAVIGATION", "no").lower() in (
+            "1", "yes", "true", "on",
+        )
+        self.overlay = overlay or (
+            BrowserOverlay() if browser_integration else X11Overlay()
+        )
         self.condition = threading.Condition()
         self.latest: tuple[str, list[tuple[str, float]]] | None = None
         self.active_kind: str | None = None
@@ -1893,6 +2013,9 @@ class OverlayWorker:
             self.interrupt.set()
             self.condition.notify()
         self.thread.join(timeout=2)
+        close = getattr(self.overlay, "close", None)
+        if close is not None:
+            close()
 
     def submit(
         self, text: str, duration: float | None = None, kind: str = "command",
@@ -1968,10 +2091,10 @@ class OverlayWorker:
     def _run(self) -> None:
         try:
             self.overlay.warm_up()
-            LOG.debug("X11 overlay warm-up complete")
+            LOG.debug("%s warm-up complete", type(self.overlay).__name__)
         except (AttributeError, OSError, RuntimeError) as exc:
             # A temporarily unavailable display must not disable later overlays.
-            LOG.warning("X11 overlay warm-up skipped: %s", exc)
+            LOG.warning("%s warm-up skipped: %s", type(self.overlay).__name__, exc)
         while True:
             with self.condition:
                 while self.latest is None and not self.stopping:
@@ -1987,7 +2110,7 @@ class OverlayWorker:
                 self.overlay.show_sequence(frames, self.interrupt)
                 LOG.debug("Overlay drawing finished: kind=%s", kind)
             except (OSError, RuntimeError) as exc:
-                LOG.error("X11 overlay failed: %s", exc)
+                LOG.error("%s failed: %s", type(self.overlay).__name__, exc)
             finally:
                 with self.condition:
                     if self.active_kind == kind:
