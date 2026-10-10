@@ -26,7 +26,7 @@ part of this theme and remains local to the Raspberry Pi display.
   <img width="350" alt="Liquid Glass Album view" src="assets/liquid-glass-album.png" />
   <img width="350" alt="Liquid Glass Library menu" src="assets/liquid-glass-library.png" />
 </p>
-<sub>The current optimized Album grid, responsive glass playbar, and static-glass Library menu. The white focus frame is supplied by the optional SiriRemote navigation integration.</sub><br><br>
+<sub>Current neutral Liquid Glass views: the optimized Album grid with responsive glass playbar, and the normally opened static-glass Library menu. Neither image contains a temporary SiriRemote focus state.</sub><br><br>
 
 ## What the patch changes
 
