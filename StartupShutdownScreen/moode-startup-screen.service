@@ -1,0 +1,12 @@
+[Unit]
+Description=moOde startup framebuffer screen
+DefaultDependencies=no
+After=local-fs.target systemd-vconsole-setup.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/moode-startup-shutdown-screen startup
+TimeoutStopSec=5
+
+[Install]
+WantedBy=sysinit.target

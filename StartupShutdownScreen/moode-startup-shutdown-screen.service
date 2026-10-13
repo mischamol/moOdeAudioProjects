@@ -1,0 +1,15 @@
+[Unit]
+Description=moOde shutdown framebuffer screen coordinator
+After=local-fs.target systemd-vconsole-setup.service
+Before=localdisplay.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=/usr/local/bin/moode-startup-shutdown-screen shutdown-if-stopping
+TimeoutStartSec=5
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
