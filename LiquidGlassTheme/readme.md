@@ -12,7 +12,12 @@ remain legible over light and detailed cover artwork. Footer controls
 and fullscreen compact toggle controls use explicit square boxes. The desktop
 Previous/Play/Next controls also use fixed square boxes, preventing circular
 buttons from becoming vertically oval on wider phone, tablet, and computer
-layouts. Wide-screen footer controls are vertically centered and kept within
+layouts. On Playback, these controls act as true glass lenses: they show a
+sharp, pixel-aligned continuation of moOde's cover backdrop while the page
+behind them remains blurred. Stronger asymmetric refraction, rim lighting, and
+depth shadows give both the transport and compact controls a convex appearance
+without placing an opaque tint over the artwork. Wide-screen footer controls
+are vertically centered and kept within
 the footer instead of touching or crossing the viewport edge. The compact
 fullscreen toggle row uses smaller true circles on landscape displays so it
 also remains fully visible when browser chrome reduces the viewport height.

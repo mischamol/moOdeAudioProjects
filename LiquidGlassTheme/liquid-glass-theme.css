@@ -106,10 +106,12 @@
         radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.13), transparent 56%),
         linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008)) !important;
     border-color: rgba(255,255,255,.32) !important;
-    box-shadow: inset 1px 2px 3px rgba(255,255,255,.46),
-                inset -2px -4px 7px rgba(0,0,0,.24),
-                0 8px 20px rgba(0,0,0,.34),
-                0 2px 5px rgba(0,0,0,.16) !important;
+    box-shadow: inset 2px 3px 4px rgba(255,255,255,.46),
+                inset -3px -6px 9px rgba(0,0,0,.24),
+                0 10px 24px rgba(0,0,0,.40),
+                0 3px 7px rgba(0,0,0,.18) !important;
+    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
+    backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
     text-shadow:
         -1px -1px 2px rgba(0,0,0,.86),
          1px -1px 2px rgba(0,0,0,.86),
@@ -130,9 +132,10 @@
 :root.liquid-glass-theme button.btn:focus,
 :root.liquid-glass-theme .btn-group > .btn:hover {
     background:
-        radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.28), transparent 36%),
-        linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.025)) !important;
-    border-color: rgba(255,255,255,.30) !important;
+        radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.30), transparent 36%),
+        radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.11), transparent 56%),
+        linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.012)) !important;
+    border-color: rgba(255,255,255,.42) !important;
 }
 
 :root.liquid-glass-theme input:not([type='range']) {
@@ -244,18 +247,16 @@
 
 :root.liquid-glass-theme #panel-footer #playbar-controls .btn,
 :root.liquid-glass-theme #panel-footer #playbar-toggles .btn {
-    background:
-        radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.22), transparent 34%),
-        radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.13), transparent 56%),
-        linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008)) !important;
-    border: 1px solid rgba(255,255,255,.32) !important;
+    background: transparent !important;
+    border: 1px solid rgba(255,255,255,.42) !important;
     border-radius: 50% !important;
-    box-shadow: inset 1px 2px 3px rgba(255,255,255,.46),
-                inset -2px -4px 7px rgba(0,0,0,.24),
-                0 8px 20px rgba(0,0,0,.34),
-                0 2px 5px rgba(0,0,0,.16) !important;
-    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
-    backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
+    box-shadow: inset 3px 5px 7px rgba(255,255,255,.56),
+                inset -5px -9px 13px rgba(0,0,0,.34),
+                inset 0 -2px 4px rgba(255,255,255,.12),
+                0 12px 28px rgba(0,0,0,.44),
+                0 4px 9px rgba(0,0,0,.22) !important;
+    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
+    backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
 }
 
 /* Portrait media rules otherwise make some compact toggle buttons taller than
@@ -365,18 +366,69 @@
 
 :root.liquid-glass-theme #playbtns .btn,
 :root.liquid-glass-theme #togglebtns .btn {
-    background:
-        radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.22), transparent 34%),
-        radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.13), transparent 56%),
-        linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008)) !important;
-    border: 1px solid rgba(255,255,255,.32) !important;
+    background: transparent !important;
+    border: 1px solid rgba(255,255,255,.42) !important;
     border-radius: 50% !important;
-    box-shadow: inset 2px 4px 4px rgba(255,255,255,.46),
-                inset -4px -7px 11px rgba(0,0,0,.24),
-                0 16px 36px rgba(0,0,0,.42),
-                0 4px 9px rgba(0,0,0,.18) !important;
-    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
-    backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
+    box-shadow: inset 7px 12px 16px rgba(255,255,255,.56),
+                inset -11px -20px 30px rgba(0,0,0,.34),
+                inset 0 -3px 7px rgba(255,255,255,.12),
+                0 28px 60px rgba(0,0,0,.46),
+                0 7px 17px rgba(0,0,0,.22) !important;
+    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
+    backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
+    overflow: hidden !important;
+    position: relative !important;
+    isolation: isolate;
+}
+
+/* Unlike moOde's intentionally blurred page backdrop, the Siri overlay
+   projects the original cover image into its lens. JavaScript supplies a
+   viewport-aligned crop so all round controls reveal one continuous, sharp
+   cover image instead of repeating a miniature cover in every button. */
+:root.liquid-glass-theme #playbtns .btn::before,
+:root.liquid-glass-theme #togglebtns .btn::before,
+:root.liquid-glass-theme #panel-footer #playbar-controls .btn::before,
+:root.liquid-glass-theme #panel-footer #playbar-toggles .btn::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    border-radius: inherit;
+    background-image: var(--liquid-glass-cover-image, none);
+    background-repeat: no-repeat;
+    background-size: var(--liquid-glass-cover-size, auto);
+    background-position: var(--liquid-glass-cover-position, center);
+    filter: saturate(1.13) contrast(1.055) brightness(1.025);
+    opacity: .94;
+    pointer-events: none;
+}
+
+/* Match the remote overlay's curved specular lens highlight on Playback's
+   round transport and toggle controls without touching menu/text buttons. */
+:root.liquid-glass-theme #playbtns .btn::after,
+:root.liquid-glass-theme #togglebtns .btn::after,
+:root.liquid-glass-theme #panel-footer #playbar-controls .btn::after,
+:root.liquid-glass-theme #panel-footer #playbar-toggles .btn::after {
+    content: '';
+    position: absolute;
+    z-index: 2;
+    left: 14%;
+    top: 6%;
+    width: 54%;
+    height: 18%;
+    border-radius: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,.64), rgba(255,255,255,.09) 58%, transparent);
+    filter: blur(3.5px);
+    transform: rotate(-12deg);
+    pointer-events: none;
+}
+
+:root.liquid-glass-theme #playbtns .btn > *,
+:root.liquid-glass-theme #togglebtns .btn > *,
+:root.liquid-glass-theme #panel-footer #playbar-controls .btn > *,
+:root.liquid-glass-theme #panel-footer #playbar-toggles .btn > * {
+    position: relative;
+    z-index: 3;
 }
 
 :root.liquid-glass-theme #playbtns .btn i,
