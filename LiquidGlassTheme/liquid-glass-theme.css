@@ -65,6 +65,41 @@
     border-radius: 0 0 1.35rem 1.35rem !important;
 }
 
+/* The two persistent header menus are icon controls, not text actions. Give
+   both the same true-circle geometry as the compact Shuffle control in every
+   view; explicit min/max dimensions prevent moOde's native padding and brand
+   layout from turning either surface into a square or oval. */
+:root.liquid-glass-theme #panel-header #menu-cdsp,
+:root.liquid-glass-theme #panel-header #menu-settings {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 3.5rem !important;
+    min-width: 3.5rem !important;
+    max-width: 3.5rem !important;
+    height: 3.5rem !important;
+    min-height: 3.5rem !important;
+    max-height: 3.5rem !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+}
+
+/* moOde positions both layers of its m brand for the original padded link.
+   Re-center them inside the now circular control. */
+:root.liquid-glass-theme #panel-header #menu-settings #mblur,
+:root.liquid-glass-theme #panel-header #menu-settings #mbrand {
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 50% !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+    transform: translate(-50%, -50%) !important;
+}
+
 /* Avoid re-blurring the moving album grid on every Library scroll frame. */
 :root.liquid-glass-theme.liquid-glass-library-visible #panel-header {
     -webkit-backdrop-filter: none !important;
@@ -247,6 +282,9 @@
 
 :root.liquid-glass-theme #panel-footer #playbar-controls .btn,
 :root.liquid-glass-theme #panel-footer #playbar-toggles .btn {
+    position: relative !important;
+    isolation: isolate;
+    overflow: hidden !important;
     background: transparent !important;
     border: 1px solid rgba(255,255,255,.42) !important;
     border-radius: 50% !important;
@@ -299,10 +337,14 @@
 
     :root.liquid-glass-theme #panel-footer #playbar-controls .btn {
         box-sizing: border-box !important;
+        flex: 0 0 3.5rem !important;
+        aspect-ratio: 1 / 1 !important;
         width: 3.5rem !important;
         min-width: 3.5rem !important;
+        max-width: 3.5rem !important;
         height: 3.5rem !important;
         min-height: 3.5rem !important;
+        max-height: 3.5rem !important;
         padding: 0 !important;
         border-radius: 50% !important;
         line-height: 3.5rem !important;
@@ -320,6 +362,56 @@
     :root.liquid-glass-theme #panel-footer #playbar-controls .btn i {
         line-height: 1 !important;
         vertical-align: middle !important;
+    }
+}
+
+/* The portrait kiosk reserves a narrower footer control column than desktop.
+   Keep every control square, but size and space the two rows independently so
+   their glass rims and shadows never merge into one continuous capsule. */
+@media (max-width: 479px) and (orientation: portrait) {
+    :root.liquid-glass-theme #panel-footer #playbar-controls {
+        column-gap: 5px !important;
+    }
+
+    :root.liquid-glass-theme #panel-footer #playbar-controls .btn {
+        box-sizing: border-box !important;
+        flex: 0 0 38px !important;
+        aspect-ratio: 1 / 1 !important;
+        width: 38px !important;
+        min-width: 38px !important;
+        max-width: 38px !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        max-height: 38px !important;
+        line-height: 38px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+    }
+
+    :root.liquid-glass-theme #panel-footer #playbar-controls .btn + .btn {
+        margin-left: 5px !important;
+    }
+
+    :root.liquid-glass-theme #panel-footer #playbar-toggles {
+        column-gap: 4px !important;
+    }
+
+    :root.liquid-glass-theme #panel-footer #playbar-toggles .btn:not(#playbar-volume-popup-btn) {
+        box-sizing: border-box !important;
+        flex: 0 0 26px !important;
+        aspect-ratio: 1 / 1 !important;
+        width: 26px !important;
+        min-width: 26px !important;
+        max-width: 26px !important;
+        height: 26px !important;
+        min-height: 26px !important;
+        max-height: 26px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+    }
+
+    :root.liquid-glass-theme #panel-footer #playbar-toggles .btn + .btn {
+        margin-left: 4px !important;
     }
 }
 

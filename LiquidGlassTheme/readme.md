@@ -21,6 +21,10 @@ are vertically centered and kept within
 the footer instead of touching or crossing the viewport edge. The compact
 fullscreen toggle row uses smaller true circles on landscape displays so it
 also remains fully visible when browser chrome reduces the viewport height.
+The persistent moOde and CamillaDSP header menus use the same circular glass
+geometry in Playback and Library views. Album-footer transport controls have
+locked square dimensions and cannot be compressed into vertical ovals by the
+mobile flex layout.
 The theme never overrides moOde's button visibility, so unavailable or disabled
 layout actions stay hidden. Controls with a text label, such as Volume, may
 remain wider capsules.
