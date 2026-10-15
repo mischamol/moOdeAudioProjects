@@ -80,10 +80,10 @@
             color: rgba(255,255,255,.97);
             text-align: center;
             font-family: Lato, sans-serif;
-            background:
-                radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.22), transparent 34%),
-                radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.13), transparent 56%),
-                linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008));
+            background-color: rgba(16,19,24,.90);
+            background-image:
+                radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
+                linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18));
             border: 1px solid rgba(255,255,255,.32);
             box-shadow: inset 5px 8px 10px rgba(255,255,255,.46),
                         inset -8px -14px 22px rgba(0,0,0,.24),
@@ -101,16 +101,17 @@
             transform: scale(1.060);
             transform-origin: center;
             filter: saturate(1.13) contrast(1.055) brightness(1.025);
-            opacity: .94;
+            opacity: 1;
         }
         #siri-browser-overlay .siri-overlay-lens::before {
             content: '';
             position: absolute;
             inset: 0;
             border-radius: 50%;
-            background:
-                radial-gradient(ellipse at 31% 11%, rgba(255,255,255,.21), transparent 41%),
-                radial-gradient(ellipse at 70% 93%, rgba(0,0,0,.11), transparent 58%);
+            background-color: rgba(16,19,24,.90);
+            background-image:
+                radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
+                linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18));
         }
         #siri-browser-overlay .siri-overlay-lens::after {
             content: '';

@@ -10,11 +10,12 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN SIRI REMOTE LIBRARY NAVIGATION -->"
 END = "<!-- END SIRI REMOTE LIBRARY NAVIGATION -->"
-SCRIPT = '<script src="js/siri-remote-navigation.js?v=4" defer></script>'
+SCRIPT = '<script src="js/siri-remote-navigation.js?v=5" defer></script>'
 PREVIOUS_SCRIPTS = [
     '<script src="js/siri-remote-navigation.js" defer></script>',
     '<script src="js/siri-remote-navigation.js?v=2" defer></script>',
     '<script src="js/siri-remote-navigation.js?v=3" defer></script>',
+    '<script src="js/siri-remote-navigation.js?v=4" defer></script>',
 ]
 SOURCE_ANCHOR = re.compile(r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$')
 BUILT_ANCHOR = re.compile(r'^\s*<script src="js/main\.min\.js(?:\?[^\"]*)?" defer></script>\s*$')

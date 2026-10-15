@@ -13,9 +13,28 @@
     background-attachment: fixed !important;
 }
 
-/* Reveal moOde's own blurred cover backdrop without changing its settings. */
+/* Playback uses the cover itself as a sharp, full-screen backdrop. Apply the
+   same translucent material as the Library playbar as a separate veil so the
+   artwork remains crisp and controls can look through one continuous layer. */
+:root.liquid-glass-theme #cover-backdrop {
+    filter: none !important;
+    transform: none !important;
+}
+
+:root.liquid-glass-theme #cover-backdrop::after {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    background-color: rgba(16, 19, 24, .90) !important;
+    background-image:
+        radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
+    pointer-events: none;
+}
+
 :root.liquid-glass-theme #content:has(#playback-panel.active) {
-    background-color: color-mix(in srgb, var(--adaptbg) 55%, transparent) !important;
+    background-color: transparent !important;
 }
 
 /* Preserve contrast over bright artwork without drawing a dark text panel. */
@@ -258,9 +277,10 @@
 /* Keep moOde's native Library playbar layout while giving its existing
    surface and controls the same tint-free glass material as Playback. */
 :root.liquid-glass-theme #panel-footer {
-    background:
-        radial-gradient(circle at 18% 0, rgba(255,255,255,.14), transparent 38%),
-        linear-gradient(145deg, rgba(255,255,255,.035), var(--liquid-glass-panel)) !important;
+    background-color: rgba(16, 19, 24, .90) !important;
+    background-image:
+        radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
     border: 1px solid var(--liquid-glass-border) !important;
     border-bottom: none !important;
     border-radius: 1.35rem 1.35rem 0 0 !important;
@@ -365,9 +385,10 @@
     }
 }
 
-/* The portrait kiosk reserves a narrower footer control column than desktop.
-   Keep every control square, but size and space the two rows independently so
-   their glass rims and shadows never merge into one continuous capsule. */
+/* The portrait kiosk reserves a narrow footer control column. Keep both rows
+   square and give every lens its own gap so neither geometry nor shadow can
+   merge with the neighbouring control. This follows the generic toggle sizes
+   above so these portrait dimensions remain authoritative. */
 @media (max-width: 479px) and (orientation: portrait) {
     :root.liquid-glass-theme #panel-footer #playbar-controls {
         column-gap: 5px !important;
@@ -434,10 +455,10 @@
 /* Without live blur, Library labels behind the fixed footer remain sharply
    visible. A static dark glass fill hides that visual noise at no repaint cost. */
 :root.liquid-glass-theme.liquid-glass-library-visible #panel-footer {
-    background-color: rgba(14, 17, 22, .62) !important;
+    background-color: rgba(16, 19, 24, .90) !important;
     background-image:
-        radial-gradient(ellipse at 18% 0, rgba(255,255,255,.14), transparent 40%),
-        linear-gradient(145deg, rgba(255,255,255,.045), rgba(8,10,14,.16)) !important;
+        radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
 }
 
 :root.liquid-glass-theme #panel-footer #playbar-currentsong,
@@ -493,6 +514,17 @@
     filter: saturate(1.13) contrast(1.055) brightness(1.025);
     opacity: .94;
     pointer-events: none;
+}
+
+/* Playback must look through the shared full-screen glass veil. Suppress any
+   cover crop left as an inline custom property by an already-open pre-v41
+   page; otherwise light artwork can turn individual controls white. */
+:root.liquid-glass-theme #playbtns .btn::before,
+:root.liquid-glass-theme #togglebtns .btn::before,
+:root.liquid-glass-theme #panel-footer #playbar-controls .btn::before,
+:root.liquid-glass-theme #panel-footer #playbar-toggles .btn::before {
+    background-image: none !important;
+    opacity: 0 !important;
 }
 
 /* Match the remote overlay's curved specular lens highlight on Playback's
@@ -586,6 +618,46 @@
     max-width: 8.75rem !important;
     max-height: 8.75rem !important;
     padding: 0 !important;
+}
+
+/* The wide Playback column is narrower than three viewport-sized transport
+   buttons. Use bounded circles and an explicit gap so Previous, Play and Next
+   never overlap or clip in laptop/desktop layouts. */
+@media (min-width: 480px) and (orientation: landscape) {
+    :root.liquid-glass-theme #playbtns .btn-group {
+        box-sizing: border-box !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: .55rem !important;
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    :root.liquid-glass-theme #playbtns .btn-group .btn {
+        flex: 0 0 auto !important;
+        margin: 0 !important;
+    }
+
+    :root.liquid-glass-theme #playbtns .prev,
+    :root.liquid-glass-theme #playbtns .next {
+        width: 5.5rem !important;
+        min-width: 5.5rem !important;
+        max-width: 5.5rem !important;
+        height: 5.5rem !important;
+        min-height: 5.5rem !important;
+        max-height: 5.5rem !important;
+    }
+
+    :root.liquid-glass-theme #playbtns .play {
+        width: 6rem !important;
+        min-width: 6rem !important;
+        max-width: 6rem !important;
+        height: 6rem !important;
+        min-height: 6rem !important;
+        max-height: 6rem !important;
+    }
 }
 
 :root.liquid-glass-theme #albumcovers > li,

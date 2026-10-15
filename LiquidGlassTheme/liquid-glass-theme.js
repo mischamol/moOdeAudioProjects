@@ -11,8 +11,6 @@
     let lensImageUrl = '';
 
     const LENS_CONTROLS = [
-        '#playbtns .btn',
-        '#togglebtns .btn',
         '#panel-footer #playbar-controls .btn',
         '#panel-footer #playbar-toggles .btn',
     ].join(',');

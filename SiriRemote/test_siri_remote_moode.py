@@ -709,10 +709,10 @@ class X11OverlayTests(unittest.TestCase):
             0x606060,
         )
 
-    def test_overlay_colors_match_moode_defaults(self):
-        self.assertEqual(remote.X11Overlay.MOODE_GREY, 0x303030)
+    def test_overlay_colors_match_dark_glass_theme(self):
+        self.assertEqual(remote.X11Overlay.MOODE_GREY, 0x101318)
         self.assertEqual(remote.X11Overlay.MOODE_TEXT, (240 / 255.0,) * 3)
-        self.assertEqual(remote.X11Overlay.OVERLAY_OPACITY, 0.36)
+        self.assertEqual(remote.X11Overlay.OVERLAY_OPACITY, 0.90)
         self.assertEqual(remote.X11Overlay.OVERLAY_BORDER_OPACITY, 0.48)
         self.assertEqual(remote.X11Overlay.OVERLAY_BORDER_WIDTH, 0.004)
         self.assertEqual(remote.X11Overlay.GLASS_BLUR_DOWNSAMPLE, 8)

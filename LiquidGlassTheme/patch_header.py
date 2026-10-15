@@ -10,8 +10,8 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN LIQUID GLASS THEME -->"
 END = "<!-- END LIQUID GLASS THEME -->"
-STYLESHEET = '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=26">'
-SCRIPT = '<script src="js/liquid-glass-theme.js?v=26" defer></script>'
+STYLESHEET = '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=43">'
+SCRIPT = '<script src="js/liquid-glass-theme.js?v=43" defer></script>'
 PREVIOUS_BODIES = [
     [
         '<link rel="stylesheet" href="css/liquid-glass-theme.css">',
@@ -112,6 +112,74 @@ PREVIOUS_BODIES = [
     [
         '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=25">',
         '<script src="js/liquid-glass-theme.js?v=25" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=26">',
+        '<script src="js/liquid-glass-theme.js?v=26" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=27">',
+        '<script src="js/liquid-glass-theme.js?v=27" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=28">',
+        '<script src="js/liquid-glass-theme.js?v=28" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=29">',
+        '<script src="js/liquid-glass-theme.js?v=29" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=30">',
+        '<script src="js/liquid-glass-theme.js?v=30" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=31">',
+        '<script src="js/liquid-glass-theme.js?v=31" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=32">',
+        '<script src="js/liquid-glass-theme.js?v=32" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=33">',
+        '<script src="js/liquid-glass-theme.js?v=33" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=34">',
+        '<script src="js/liquid-glass-theme.js?v=34" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=35">',
+        '<script src="js/liquid-glass-theme.js?v=35" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=36">',
+        '<script src="js/liquid-glass-theme.js?v=36" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=37">',
+        '<script src="js/liquid-glass-theme.js?v=37" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=38">',
+        '<script src="js/liquid-glass-theme.js?v=38" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=39">',
+        '<script src="js/liquid-glass-theme.js?v=39" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=40">',
+        '<script src="js/liquid-glass-theme.js?v=40" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=41">',
+        '<script src="js/liquid-glass-theme.js?v=41" defer></script>',
+    ],
+    [
+        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=42">',
+        '<script src="js/liquid-glass-theme.js?v=42" defer></script>',
     ],
 ]
 SOURCE_ANCHOR = re.compile(r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$')
