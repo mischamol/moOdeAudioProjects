@@ -674,3 +674,24 @@ Bluetooth pairing data and separate BlueZ configuration are not changed.
 
 The current `bluetoothctl` command syntax is documented by the
 [BlueZ project](https://github.com/bluez/bluez/blob/master/doc/bluetoothctl.rst).
+
+## Maintenance and validation
+
+The navigation installer derives all supported historical script tags from
+one `ASSET_VERSION` value. Its marked header block remains safe to upgrade,
+reinstall, or remove without matching unrelated moOde markup. The browser
+overlay and navigation remain in one JavaScript file; the Python daemon owns
+Bluetooth, command dispatch, reconnect handling and overlay state only.
+
+Run the complete local regression suite before publishing a change:
+
+```sh
+python3 -m unittest test_siri_remote_moode.py
+cd moode-navigation
+node --check siri-remote-navigation.js
+python3 -m unittest test_patch_header.py
+```
+
+The screenshots in this guide were recaptured from the installed 720 × 1280
+local display after the current daemon, navigation script and Liquid Glass
+theme had been installed.

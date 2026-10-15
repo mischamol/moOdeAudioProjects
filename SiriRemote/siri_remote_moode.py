@@ -1349,13 +1349,6 @@ class X11Overlay:
             LOG.warning("Cannot make X11 overlay click-through: %s", exc)
 
     @staticmethod
-    def _darken_pixel(pixel: int, retained: float = 0.34) -> int:
-        blue = int((pixel & 0xFF) * retained)
-        green = int(((pixel >> 8) & 0xFF) * retained)
-        red = int(((pixel >> 16) & 0xFF) * retained)
-        return (red << 16) | (green << 8) | blue
-
-    @staticmethod
     def _blend_pixel(pixel: int, tint: int, opacity: float) -> int:
         retained = 1.0 - opacity
         blue = int((pixel & 0xFF) * retained + (tint & 0xFF) * opacity)

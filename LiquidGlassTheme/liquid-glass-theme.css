@@ -494,39 +494,6 @@
     isolation: isolate;
 }
 
-/* Unlike moOde's intentionally blurred page backdrop, the Siri overlay
-   projects the original cover image into its lens. JavaScript supplies a
-   viewport-aligned crop so all round controls reveal one continuous, sharp
-   cover image instead of repeating a miniature cover in every button. */
-:root.liquid-glass-theme #playbtns .btn::before,
-:root.liquid-glass-theme #togglebtns .btn::before,
-:root.liquid-glass-theme #panel-footer #playbar-controls .btn::before,
-:root.liquid-glass-theme #panel-footer #playbar-toggles .btn::before {
-    content: '';
-    position: absolute;
-    z-index: 0;
-    inset: 0;
-    border-radius: inherit;
-    background-image: var(--liquid-glass-cover-image, none);
-    background-repeat: no-repeat;
-    background-size: var(--liquid-glass-cover-size, auto);
-    background-position: var(--liquid-glass-cover-position, center);
-    filter: saturate(1.13) contrast(1.055) brightness(1.025);
-    opacity: .94;
-    pointer-events: none;
-}
-
-/* Playback must look through the shared full-screen glass veil. Suppress any
-   cover crop left as an inline custom property by an already-open pre-v41
-   page; otherwise light artwork can turn individual controls white. */
-:root.liquid-glass-theme #playbtns .btn::before,
-:root.liquid-glass-theme #togglebtns .btn::before,
-:root.liquid-glass-theme #panel-footer #playbar-controls .btn::before,
-:root.liquid-glass-theme #panel-footer #playbar-toggles .btn::before {
-    background-image: none !important;
-    opacity: 0 !important;
-}
-
 /* Match the remote overlay's curved specular lens highlight on Playback's
    round transport and toggle controls without touching menu/text buttons. */
 :root.liquid-glass-theme #playbtns .btn::after,

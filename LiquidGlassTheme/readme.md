@@ -97,6 +97,25 @@ installer.
 After a moOde update, run the same installer again. It is idempotent and
 reapplies only its own marked include block and database entry.
 
+## Maintenance and validation
+
+The small JavaScript companion only synchronizes the selected theme and the
+visibility of the Library view. All visual effects are defined in the
+stylesheet; there is no second JavaScript cover-projection path to keep in
+sync. The header patcher generates its supported asset-version history from a
+single version number, so a new release requires changing only
+`ASSET_VERSION`.
+
+Before publishing a change, run:
+
+```sh
+node --check liquid-glass-theme.js
+python3 -m unittest test_patch_header.py
+```
+
+The screenshots above were recaptured from the local 720 × 1280 moOde display
+after the current files had been installed.
+
 ## Uninstall
 
 ```sh

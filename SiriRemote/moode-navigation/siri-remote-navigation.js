@@ -80,10 +80,6 @@
             color: rgba(255,255,255,.97);
             text-align: center;
             font-family: Lato, sans-serif;
-            background-color: rgba(16,19,24,.90);
-            background-image:
-                radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
-                linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18));
             border: 1px solid rgba(255,255,255,.32);
             box-shadow: inset 5px 8px 10px rgba(255,255,255,.46),
                         inset -8px -14px 22px rgba(0,0,0,.24),
@@ -108,6 +104,9 @@
             position: absolute;
             inset: 0;
             border-radius: 50%;
+        }
+        #siri-browser-overlay .siri-overlay-glass,
+        #siri-browser-overlay .siri-overlay-lens::before {
             background-color: rgba(16,19,24,.90);
             background-image:
                 radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),

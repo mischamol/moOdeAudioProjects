@@ -10,203 +10,55 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN LIQUID GLASS THEME -->"
 END = "<!-- END LIQUID GLASS THEME -->"
-STYLESHEET = '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=43">'
-SCRIPT = '<script src="js/liquid-glass-theme.js?v=43" defer></script>'
-PREVIOUS_BODIES = [
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css">',
-        '<script src="js/liquid-glass-theme.js" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=2">',
-        '<script src="js/liquid-glass-theme.js?v=2" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=3">',
-        '<script src="js/liquid-glass-theme.js?v=3" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=4">',
-        '<script src="js/liquid-glass-theme.js?v=4" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=5">',
-        '<script src="js/liquid-glass-theme.js?v=5" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=6">',
-        '<script src="js/liquid-glass-theme.js?v=6" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=7">',
-        '<script src="js/liquid-glass-theme.js?v=7" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=8">',
-        '<script src="js/liquid-glass-theme.js?v=8" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=9">',
-        '<script src="js/liquid-glass-theme.js?v=9" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=10">',
-        '<script src="js/liquid-glass-theme.js?v=10" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=11">',
-        '<script src="js/liquid-glass-theme.js?v=11" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=12">',
-        '<script src="js/liquid-glass-theme.js?v=12" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=13">',
-        '<script src="js/liquid-glass-theme.js?v=13" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=14">',
-        '<script src="js/liquid-glass-theme.js?v=14" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=15">',
-        '<script src="js/liquid-glass-theme.js?v=15" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=16">',
-        '<script src="js/liquid-glass-theme.js?v=16" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=17">',
-        '<script src="js/liquid-glass-theme.js?v=17" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=18">',
-        '<script src="js/liquid-glass-theme.js?v=18" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=19">',
-        '<script src="js/liquid-glass-theme.js?v=19" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=20">',
-        '<script src="js/liquid-glass-theme.js?v=20" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=21">',
-        '<script src="js/liquid-glass-theme.js?v=21" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=22">',
-        '<script src="js/liquid-glass-theme.js?v=22" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=23">',
-        '<script src="js/liquid-glass-theme.js?v=23" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=24">',
-        '<script src="js/liquid-glass-theme.js?v=24" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=25">',
-        '<script src="js/liquid-glass-theme.js?v=25" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=26">',
-        '<script src="js/liquid-glass-theme.js?v=26" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=27">',
-        '<script src="js/liquid-glass-theme.js?v=27" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=28">',
-        '<script src="js/liquid-glass-theme.js?v=28" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=29">',
-        '<script src="js/liquid-glass-theme.js?v=29" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=30">',
-        '<script src="js/liquid-glass-theme.js?v=30" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=31">',
-        '<script src="js/liquid-glass-theme.js?v=31" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=32">',
-        '<script src="js/liquid-glass-theme.js?v=32" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=33">',
-        '<script src="js/liquid-glass-theme.js?v=33" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=34">',
-        '<script src="js/liquid-glass-theme.js?v=34" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=35">',
-        '<script src="js/liquid-glass-theme.js?v=35" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=36">',
-        '<script src="js/liquid-glass-theme.js?v=36" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=37">',
-        '<script src="js/liquid-glass-theme.js?v=37" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=38">',
-        '<script src="js/liquid-glass-theme.js?v=38" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=39">',
-        '<script src="js/liquid-glass-theme.js?v=39" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=40">',
-        '<script src="js/liquid-glass-theme.js?v=40" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=41">',
-        '<script src="js/liquid-glass-theme.js?v=41" defer></script>',
-    ],
-    [
-        '<link rel="stylesheet" href="css/liquid-glass-theme.css?v=42">',
-        '<script src="js/liquid-glass-theme.js?v=42" defer></script>',
-    ],
-]
-SOURCE_ANCHOR = re.compile(r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$')
-BUILT_ANCHOR = re.compile(r'^\s*<script src="js/main\.min\.js(?:\?[^\"]*)?" defer></script>\s*$')
+ASSET_VERSION = 44
+SOURCE_ANCHOR = re.compile(
+    r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$'
+)
+BUILT_ANCHOR = re.compile(
+    r'^\s*<script src="js/main\.min\.js(?:\?[^\"]*)?" defer></script>\s*$'
+)
+
+
+def asset_body(version: int) -> list[str]:
+    suffix = "" if version == 1 else f"?v={version}"
+    return [
+        f'<link rel="stylesheet" href="css/liquid-glass-theme.css{suffix}">',
+        f'<script src="js/liquid-glass-theme.js{suffix}" defer></script>',
+    ]
+
+
+CURRENT_BODY = asset_body(ASSET_VERSION)
+PREVIOUS_BODIES = [asset_body(version) for version in range(1, ASSET_VERSION)]
+STYLESHEET, SCRIPT = CURRENT_BODY
+
+
+def managed_block(lines: list[str]) -> tuple[int, int, list[str]]:
+    starts = [i for i, line in enumerate(lines) if line.strip() == BEGIN]
+    ends = [i for i, line in enumerate(lines) if line.strip() == END]
+    if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:
+        raise ValueError("invalid Liquid Glass marker block in header.php")
+    start, end = starts[0], ends[0]
+    body = [line.strip() for line in lines[start + 1:end] if line.strip()]
+    return start, end, body
 
 
 def apply(text: str) -> str:
     if BEGIN in text or END in text:
         lines = text.splitlines(keepends=True)
-        starts = [i for i, line in enumerate(lines) if line.strip() == BEGIN]
-        ends = [i for i, line in enumerate(lines) if line.strip() == END]
-        if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:
-            raise ValueError("invalid Liquid Glass marker block in header.php")
-        body = [line.strip() for line in lines[starts[0] + 1:ends[0]] if line.strip()]
-        if body == [STYLESHEET, SCRIPT]:
+        start, end, body = managed_block(lines)
+        if body == CURRENT_BODY:
             return text
         if body not in PREVIOUS_BODIES:
             raise ValueError("managed Liquid Glass block was changed; refusing to upgrade it")
-        indent = re.match(r"^(\s*)", lines[starts[0]]).group(1)
+        indent = re.match(r"^(\s*)", lines[start]).group(1)
         newline = "\r\n" if "\r\n" in text else "\n"
-        lines[starts[0] + 1:ends[0]] = [
+        lines[start + 1:end] = [
             indent + STYLESHEET + newline,
             indent + SCRIPT + newline,
         ]
         return "".join(lines)
 
-    nl = "\r\n" if "\r\n" in text else "\n"
+    newline = "\r\n" if "\r\n" in text else "\n"
     lines = text.splitlines()
     source = [i for i, line in enumerate(lines) if SOURCE_ANCHOR.match(line)]
     built = [i for i, line in enumerate(lines) if BUILT_ANCHOR.match(line)]
@@ -220,25 +72,20 @@ def apply(text: str) -> str:
     indent = re.match(r"^(\s*)", lines[anchor]).group(1)
     lines[anchor + 1:anchor + 1] = [
         indent + BEGIN,
-        indent + STYLESHEET,
-        indent + SCRIPT,
+        *(indent + line for line in CURRENT_BODY),
         indent + END,
     ]
-    return nl.join(lines) + (nl if text.endswith(("\n", "\r\n")) else "")
+    return newline.join(lines) + (newline if text.endswith(("\n", "\r\n")) else "")
 
 
 def remove(text: str) -> str:
     if BEGIN not in text and END not in text:
         return text
     lines = text.splitlines(keepends=True)
-    starts = [i for i, line in enumerate(lines) if line.strip() == BEGIN]
-    ends = [i for i, line in enumerate(lines) if line.strip() == END]
-    if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:
-        raise ValueError("invalid Liquid Glass marker block in header.php")
-    body = [line.strip() for line in lines[starts[0] + 1:ends[0]] if line.strip()]
-    if body != [STYLESHEET, SCRIPT] and body not in PREVIOUS_BODIES:
+    start, end, body = managed_block(lines)
+    if body != CURRENT_BODY and body not in PREVIOUS_BODIES:
         raise ValueError("managed Liquid Glass block was changed; refusing to remove it")
-    del lines[starts[0]:ends[0] + 1]
+    del lines[start:end + 1]
     return "".join(lines)
 
 

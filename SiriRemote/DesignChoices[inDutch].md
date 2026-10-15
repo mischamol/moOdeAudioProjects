@@ -185,6 +185,12 @@ accentkleur. Liquid Glass geeft dezelfde focus optioneel een tintvrije glaslaag
 met witte rand. De feedbackoverlay blijft in SiriRemote, werkt met ieder thema
 en is qua verhoudingen afgestemd op Liquid Glass wanneer dat thema actief is.
 
+Het JavaScript van Liquid Glass bewaakt alleen nog de actieve themakeuze en of
+de Library zichtbaar is. De eerdere, inmiddels door CSS uitgeschakelde route
+die afzonderlijke coveruitsneden in iedere knop projecteerde is verwijderd.
+Daardoor doet scrollen en resizen geen overbodige geometrie- of DOM-berekening
+meer, terwijl de uiteindelijke vormgeving gelijk blijft.
+
 ## Schermoverlay
 
 De daemon toont zonder compositor of extra package een ronde schermoverlay:

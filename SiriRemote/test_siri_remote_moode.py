@@ -697,12 +697,6 @@ class X11ClickWorkerTests(unittest.TestCase):
 
 
 class X11OverlayTests(unittest.TestCase):
-    def test_darken_pixel_preserves_channels(self):
-        self.assertEqual(remote.X11Overlay._darken_pixel(0xCC8040, 0.5), 0x664020)
-
-    def test_darken_black_stays_black(self):
-        self.assertEqual(remote.X11Overlay._darken_pixel(0x000000), 0x000000)
-
     def test_blend_pixel_applies_tint_and_opacity(self):
         self.assertEqual(
             remote.X11Overlay._blend_pixel(0x000000, 0xC0C0C0, 0.5),

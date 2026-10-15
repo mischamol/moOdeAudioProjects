@@ -10,15 +10,18 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN SIRI REMOTE LIBRARY NAVIGATION -->"
 END = "<!-- END SIRI REMOTE LIBRARY NAVIGATION -->"
-SCRIPT = '<script src="js/siri-remote-navigation.js?v=5" defer></script>'
-PREVIOUS_SCRIPTS = [
-    '<script src="js/siri-remote-navigation.js" defer></script>',
-    '<script src="js/siri-remote-navigation.js?v=2" defer></script>',
-    '<script src="js/siri-remote-navigation.js?v=3" defer></script>',
-    '<script src="js/siri-remote-navigation.js?v=4" defer></script>',
-]
+ASSET_VERSION = 6
 SOURCE_ANCHOR = re.compile(r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$')
 BUILT_ANCHOR = re.compile(r'^\s*<script src="js/main\.min\.js(?:\?[^\"]*)?" defer></script>\s*$')
+
+
+def script_tag(version: int) -> str:
+    suffix = "" if version == 1 else f"?v={version}"
+    return f'<script src="js/siri-remote-navigation.js{suffix}" defer></script>'
+
+
+SCRIPT = script_tag(ASSET_VERSION)
+PREVIOUS_SCRIPTS = [script_tag(version) for version in range(1, ASSET_VERSION)]
 
 
 def apply(text: str) -> str:
@@ -31,7 +34,8 @@ def apply(text: str) -> str:
             if text.count(previous) == 1:
                 return text.replace(previous, SCRIPT, 1)
         raise ValueError("invalid Siri Remote navigation marker block in header.php")
-    nl = "\r\n" if "\r\n" in text else "\n"
+
+    newline = "\r\n" if "\r\n" in text else "\n"
     lines = text.splitlines()
     source = [i for i, line in enumerate(lines) if SOURCE_ANCHOR.match(line)]
     built = [i for i, line in enumerate(lines) if BUILT_ANCHOR.match(line)]
@@ -43,28 +47,26 @@ def apply(text: str) -> str:
         )
     anchor = anchors[0]
     indent = re.match(r"^(\s*)", lines[anchor]).group(1)
-    lines[anchor + 1 : anchor + 1] = [
+    lines[anchor + 1:anchor + 1] = [
         indent + BEGIN,
         indent + SCRIPT,
         indent + END,
     ]
-    return nl.join(lines) + (nl if text.endswith(("\n", "\r\n")) else "")
+    return newline.join(lines) + (newline if text.endswith(("\n", "\r\n")) else "")
 
 
 def remove(text: str) -> str:
     if BEGIN not in text and END not in text:
         return text
-    block = BEGIN + "\n"
-    # Preserve the indentation used by the surrounding moOde script includes.
     lines = text.splitlines(keepends=True)
     starts = [i for i, line in enumerate(lines) if line.strip() == BEGIN]
     ends = [i for i, line in enumerate(lines) if line.strip() == END]
     if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:
         raise ValueError("invalid Siri Remote navigation marker block in header.php")
-    body = [line.strip() for line in lines[starts[0] + 1 : ends[0]] if line.strip()]
+    body = [line.strip() for line in lines[starts[0] + 1:ends[0]] if line.strip()]
     if body != [SCRIPT] and body not in ([previous] for previous in PREVIOUS_SCRIPTS):
         raise ValueError("managed navigation include was changed; refusing to remove it")
-    del lines[starts[0] : ends[0] + 1]
+    del lines[starts[0]:ends[0] + 1]
     return "".join(lines)
 
 
