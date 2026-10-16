@@ -1,7 +1,6 @@
 :root.liquid-glass-theme {
-    --liquid-glass-panel: rgba(0, 0, 0, .08);
+    --liquid-glass-panel: rgba(24, 28, 35, .11);
     --liquid-glass-control: rgba(255, 255, 255, .025);
-    --liquid-glass-dark-surface: rgba(0, 0, 0, .80);
     --liquid-glass-border: rgba(255, 255, 255, .34);
     --liquid-glass-shadow: rgba(0, 0, 0, .28);
 }
@@ -27,15 +26,14 @@
     position: absolute;
     z-index: 1;
     inset: 0;
-    background-color: var(--liquid-glass-dark-surface) !important;
+    background-color: rgba(16, 19, 24, .90) !important;
     background-image:
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
-        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.16)) !important;
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
     pointer-events: none;
 }
 
-:root.liquid-glass-theme #content:has(#playback-panel.active),
-:root.liquid-glass-theme.liquid-glass-library-visible #content {
+:root.liquid-glass-theme #content:has(#playback-panel.active) {
     background-color: transparent !important;
 }
 
@@ -96,12 +94,12 @@
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 2.85rem !important;
-    min-width: 2.85rem !important;
-    max-width: 2.85rem !important;
-    height: 2.85rem !important;
-    min-height: 2.85rem !important;
-    max-height: 2.85rem !important;
+    width: 3.5rem !important;
+    min-width: 3.5rem !important;
+    max-width: 3.5rem !important;
+    height: 3.5rem !important;
+    min-height: 3.5rem !important;
+    max-height: 3.5rem !important;
     padding: 0 !important;
     border-radius: 50% !important;
     line-height: 1 !important;
@@ -112,16 +110,13 @@
    Re-center them inside the now circular control. */
 :root.liquid-glass-theme #panel-header #menu-settings #mblur,
 :root.liquid-glass-theme #panel-header #menu-settings #mbrand {
-    inset: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
-    height: 100% !important;
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 50% !important;
     margin: 0 !important;
     line-height: 1 !important;
-    text-align: center !important;
-    transform: none !important;
+    transform: translate(-50%, -50%) !important;
 }
 
 /* Avoid re-blurring the moving album grid on every Library scroll frame. */
@@ -162,11 +157,11 @@
 :root.liquid-glass-theme #playbar-switch {
     background:
         radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.22), transparent 34%),
-        radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.12), transparent 56%),
+        radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.13), transparent 56%),
         linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008)) !important;
     border-color: rgba(255,255,255,.32) !important;
     box-shadow: inset 2px 3px 4px rgba(255,255,255,.46),
-                inset -3px -6px 9px rgba(0,0,0,.22),
+                inset -3px -6px 9px rgba(0,0,0,.24),
                 0 10px 24px rgba(0,0,0,.40),
                 0 3px 7px rgba(0,0,0,.18) !important;
     -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
@@ -192,7 +187,7 @@
 :root.liquid-glass-theme .btn-group > .btn:hover {
     background:
         radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.30), transparent 36%),
-        radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.10), transparent 56%),
+        radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.11), transparent 56%),
         linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.012)) !important;
     border-color: rgba(255,255,255,.42) !important;
 }
@@ -216,10 +211,10 @@
 
 /* Menu rows stay rows instead of appearing as several active pills. */
 :root.liquid-glass-theme .dropdown-menu {
-    background-color: var(--liquid-glass-dark-surface) !important;
+    background-color: rgba(16, 19, 24, .90) !important;
     background-image:
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
-        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.16)) !important;
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
     color: rgba(255,255,255,.96) !important;
     border: 1px solid rgba(255,255,255,.30) !important;
     border-radius: 1rem !important;
@@ -235,7 +230,7 @@
     background-image:
         url(../images/camilladsp.svg),
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
-        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.16)) !important;
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
     background-repeat: no-repeat, no-repeat, no-repeat !important;
     background-position: 50% top, left top, left top !important;
     background-size: 5em, auto, auto !important;
@@ -282,10 +277,10 @@
 /* Keep moOde's native Library playbar layout while giving its existing
    surface and controls the same tint-free glass material as Playback. */
 :root.liquid-glass-theme #panel-footer {
-    background-color: var(--liquid-glass-dark-surface) !important;
+    background-color: rgba(16, 19, 24, .90) !important;
     background-image:
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
-        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.16)) !important;
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
     border: 1px solid var(--liquid-glass-border) !important;
     border-bottom: none !important;
     border-radius: 1.35rem 1.35rem 0 0 !important;
@@ -314,7 +309,7 @@
     border: 1px solid rgba(255,255,255,.42) !important;
     border-radius: 50% !important;
     box-shadow: inset 3px 5px 7px rgba(255,255,255,.56),
-                inset -5px -9px 13px rgba(0,0,0,.30),
+                inset -5px -9px 13px rgba(0,0,0,.34),
                 inset 0 -2px 4px rgba(255,255,255,.12),
                 0 12px 28px rgba(0,0,0,.44),
                 0 4px 9px rgba(0,0,0,.22) !important;
@@ -460,10 +455,10 @@
 /* Without live blur, Library labels behind the fixed footer remain sharply
    visible. A static dark glass fill hides that visual noise at no repaint cost. */
 :root.liquid-glass-theme.liquid-glass-library-visible #panel-footer {
-    background-color: var(--liquid-glass-dark-surface) !important;
+    background-color: rgba(16, 19, 24, .90) !important;
     background-image:
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
-        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.16)) !important;
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
 }
 
 :root.liquid-glass-theme #panel-footer #playbar-currentsong,
@@ -488,7 +483,7 @@
     border: 1px solid rgba(255,255,255,.42) !important;
     border-radius: 50% !important;
     box-shadow: inset 7px 12px 16px rgba(255,255,255,.56),
-                inset -11px -20px 30px rgba(0,0,0,.30),
+                inset -11px -20px 30px rgba(0,0,0,.34),
                 inset 0 -3px 7px rgba(255,255,255,.12),
                 0 28px 60px rgba(0,0,0,.46),
                 0 7px 17px rgba(0,0,0,.22) !important;

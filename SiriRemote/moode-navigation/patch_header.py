@@ -10,7 +10,7 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN SIRI REMOTE LIBRARY NAVIGATION -->"
 END = "<!-- END SIRI REMOTE LIBRARY NAVIGATION -->"
-ASSET_VERSION = 12
+ASSET_VERSION = 6
 SOURCE_ANCHOR = re.compile(r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$')
 BUILT_ANCHOR = re.compile(r'^\s*<script src="js/main\.min\.js(?:\?[^\"]*)?" defer></script>\s*$')
 

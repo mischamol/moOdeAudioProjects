@@ -25,9 +25,6 @@ The persistent moOde and CamillaDSP header menus use the same circular glass
 geometry in Playback and Library views. Album-footer transport controls have
 locked square dimensions and cannot be compressed into vertical ovals by the
 mobile flex layout.
-The shared dark material is pure black at 80% opacity. This retains the dark
-moOde character while allowing more of the cover artwork's original colour and
-detail to remain visible, without introducing a grey or blue cast.
 The theme never overrides moOde's button visibility, so unavailable or disabled
 layout actions stay hidden. Controls with a text label, such as Volume, may
 remain wider capsules.
@@ -41,7 +38,7 @@ after installation. SiriRemote's command feedback overlay is deliberately not
 part of this theme and remains local to the Raspberry Pi display.
 
 <img width="350" alt="Liquid Glass Playback view" src="assets/liquid-glass-playback.png" />
-<br><sub>Playback with the current pure-black 80% glass controls and readable metadata over moOde's cover backdrop.</sub><br><br>
+<br><sub>Playback with tint-free glass controls and readable metadata over moOde's cover backdrop.</sub><br><br>
 
 <p>
   <img width="350" alt="Liquid Glass Album view" src="assets/liquid-glass-album.png" />
@@ -66,12 +63,7 @@ No additional package is installed. The CSS is applied only while moOde's
 active theme is `Liquid Glass`; choosing another theme in the GUI immediately
 disables it. The database row supplies the standard moOde base colours, while
 the separate stylesheet provides effects that cannot be represented by
-moOde's four native theme colour fields. Playback and Library share the same
-sharp cover-art backdrop and dark translucent veil, so moving between both
-views no longer changes the visibility of the artwork. The CamillaDSP and
-moOde menu controls are slightly smaller than the native header height, remain
-fully inside the bar, and center the `m` brand independently of moOde's
-original padded positioning. While a Library grid is visible, the
+moOde's four native theme colour fields. While a Library grid is visible, the
 theme keeps its glass gradients, rims, and shadows but suspends live backdrop
 blur on the fixed header, footer, and footer buttons. This avoids repeatedly
 re-blurring the moving album grid and makes touch scrolling more consistent.

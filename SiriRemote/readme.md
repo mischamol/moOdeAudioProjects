@@ -417,10 +417,6 @@ paused, stopped, or reconnecting. Selecting an item that starts playback
 therefore also returns the local display to fullscreen Playback after five
 seconds of no further interaction. Browser sessions opened over the network
 from a phone or laptop never start this timer and retain their chosen view.
-The navigation integration exits immediately in those network-browser
-sessions, so their clicks, taps, menus, and scrolling remain entirely native
-moOde behavior. Only the Raspberry Pi's local kiosk display receives the Siri
-Remote focus and inactivity handling.
 
 General moOde styling is deliberately not part of SiriRemote. The separately
 installable [LiquidGlassTheme](../LiquidGlassTheme/readme.md) provides the
@@ -443,9 +439,8 @@ existing local Chromium page renders a one-second circular overlay. It installs
 no compositor or additional package. The current cover is enlarged inside the
 circle and combined with restrained highlights, directional inset shadows, a
 thin partially transparent white rim, and a one-pixel backdrop blur to create
-the liquid-glass lens. Its pure-black surface uses 80% opacity, matching the
-optional theme while leaving the artwork and its original colours visible
-underneath without a grey or blue cast. The overlay is self-contained and works with
+the tint-free liquid-glass lens while leaving the artwork and its original
+colours readable underneath. The overlay is self-contained and works with
 every moOde theme. Its proportions match the optional Liquid Glass controls
 when that separate theme is selected.
 Regular-weight labels and bold primary values match the visual hierarchy of
