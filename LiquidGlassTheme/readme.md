@@ -63,7 +63,12 @@ No additional package is installed. The CSS is applied only while moOde's
 active theme is `Liquid Glass`; choosing another theme in the GUI immediately
 disables it. The database row supplies the standard moOde base colours, while
 the separate stylesheet provides effects that cannot be represented by
-moOde's four native theme colour fields. While a Library grid is visible, the
+moOde's four native theme colour fields. Playback and Library share the same
+cover-art backdrop visibility, so moving between both views no longer makes
+the artwork darker. The CamillaDSP and moOde menu controls are slightly
+smaller than the native header height, remain fully inside the bar, and center
+the `m` brand independently of moOde's original padded positioning. While a
+Library grid is visible, the
 theme keeps its glass gradients, rims, and shadows but suspends live backdrop
 blur on the fixed header, footer, and footer buttons. This avoids repeatedly
 re-blurring the moving album grid and makes touch scrolling more consistent.
@@ -75,6 +80,8 @@ This keeps both light previews such as Green Tea and dark previews readable.
 The fixed Library playbar likewise uses a static dark glass fill: underlying
 album labels cannot interfere with its metadata or controls, without requiring
 the moving album grid to be blurred every frame.
+On narrow phone layouts every button in the compact footer action row uses the
+same fixed height; labelled controls such as Volume may only grow horizontally.
 
 ## Install
 

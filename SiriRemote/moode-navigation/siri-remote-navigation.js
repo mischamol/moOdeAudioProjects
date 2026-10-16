@@ -20,6 +20,13 @@
     const OVERLAY_URL = 'http://127.0.0.1:8765/overlay';
     const LOCAL_DISPLAY_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
     const IS_LOCAL_DISPLAY = LOCAL_DISPLAY_HOSTS.has(window.location.hostname);
+
+    // This integration translates keyboard-like events from the Siri Remote
+    // daemon into local kiosk navigation. Network clients must use moOde's
+    // native touch/mouse handling exclusively; even passive capture listeners
+    // can otherwise interfere with a real phone's pointer/click sequence.
+    if (!IS_LOCAL_DISPLAY) return;
+
     let selected = null;
     let playbackReturnTimer = null;
     let continuationTimer = null;

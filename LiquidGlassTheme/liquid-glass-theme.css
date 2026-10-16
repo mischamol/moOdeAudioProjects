@@ -33,7 +33,8 @@
     pointer-events: none;
 }
 
-:root.liquid-glass-theme #content:has(#playback-panel.active) {
+:root.liquid-glass-theme #content:has(#playback-panel.active),
+:root.liquid-glass-theme.liquid-glass-library-visible #content {
     background-color: transparent !important;
 }
 
@@ -94,29 +95,33 @@
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 3.5rem !important;
-    min-width: 3.5rem !important;
-    max-width: 3.5rem !important;
-    height: 3.5rem !important;
-    min-height: 3.5rem !important;
-    max-height: 3.5rem !important;
+    width: 2.85rem !important;
+    min-width: 2.85rem !important;
+    max-width: 2.85rem !important;
+    height: 2.85rem !important;
+    min-height: 2.85rem !important;
+    max-height: 2.85rem !important;
     padding: 0 !important;
     border-radius: 50% !important;
     line-height: 1 !important;
     vertical-align: middle !important;
+    transform: translateY(-.55rem) !important;
 }
 
 /* moOde positions both layers of its m brand for the original padded link.
    Re-center them inside the now circular control. */
 :root.liquid-glass-theme #panel-header #menu-settings #mblur,
 :root.liquid-glass-theme #panel-header #menu-settings #mbrand {
-    top: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: 50% !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
     margin: 0 !important;
     line-height: 1 !important;
-    transform: translate(-50%, -50%) !important;
+    text-align: center !important;
+    transform: translateY(-.1rem) !important;
 }
 
 /* Avoid re-blurring the moving album grid on every Library scroll frame. */
@@ -325,6 +330,7 @@
     min-width: 3rem !important;
     height: 3rem !important;
     min-height: 3rem !important;
+    max-height: 3rem !important;
     padding: 0 .7rem !important;
     border-radius: 999px !important;
     line-height: 1 !important;
@@ -415,6 +421,25 @@
 
     :root.liquid-glass-theme #panel-footer #playbar-toggles {
         column-gap: 4px !important;
+        align-items: center !important;
+    }
+
+    /* Keep the whole compact action row equally high on phones. Volume may
+       grow horizontally for its label, but uses the same 26px lens height. */
+    :root.liquid-glass-theme #panel-footer #playbar-toggles .btn {
+        box-sizing: border-box !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: 26px !important;
+        max-width: none !important;
+        height: 26px !important;
+        min-height: 26px !important;
+        max-height: 26px !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 0 .45rem !important;
+        border-radius: 999px !important;
+        line-height: 1 !important;
     }
 
     :root.liquid-glass-theme #panel-footer #playbar-toggles .btn:not(#playbar-volume-popup-btn) {

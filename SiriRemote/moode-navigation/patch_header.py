@@ -10,7 +10,7 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN SIRI REMOTE LIBRARY NAVIGATION -->"
 END = "<!-- END SIRI REMOTE LIBRARY NAVIGATION -->"
-ASSET_VERSION = 6
+ASSET_VERSION = 8
 SOURCE_ANCHOR = re.compile(r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$')
 BUILT_ANCHOR = re.compile(r'^\s*<script src="js/main\.min\.js(?:\?[^\"]*)?" defer></script>\s*$')
 
@@ -22,18 +22,37 @@ def script_tag(version: int) -> str:
 
 SCRIPT = script_tag(ASSET_VERSION)
 PREVIOUS_SCRIPTS = [script_tag(version) for version in range(1, ASSET_VERSION)]
+LOCAL_ONLY_BEGIN = "<?php if (in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)): ?>"
+LOCAL_ONLY_END = "<?php endif; ?>"
+CURRENT_BODY = [LOCAL_ONLY_BEGIN, SCRIPT, LOCAL_ONLY_END]
+PREVIOUS_BODIES = (
+    [[previous] for previous in PREVIOUS_SCRIPTS]
+    + [[LOCAL_ONLY_BEGIN, previous, LOCAL_ONLY_END] for previous in PREVIOUS_SCRIPTS]
+)
+
+
+def managed_block(lines: list[str]) -> tuple[int, int, list[str]]:
+    starts = [i for i, line in enumerate(lines) if line.strip() == BEGIN]
+    ends = [i for i, line in enumerate(lines) if line.strip() == END]
+    if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:
+        raise ValueError("invalid Siri Remote navigation marker block in header.php")
+    start, end = starts[0], ends[0]
+    body = [line.strip() for line in lines[start + 1:end] if line.strip()]
+    return start, end, body
 
 
 def apply(text: str) -> str:
     if BEGIN in text or END in text:
-        if text.count(BEGIN) != 1 or text.count(END) != 1:
-            raise ValueError("invalid Siri Remote navigation marker block in header.php")
-        if text.count(SCRIPT) == 1:
+        lines = text.splitlines(keepends=True)
+        start, end, body = managed_block(lines)
+        if body == CURRENT_BODY:
             return text
-        for previous in PREVIOUS_SCRIPTS:
-            if text.count(previous) == 1:
-                return text.replace(previous, SCRIPT, 1)
-        raise ValueError("invalid Siri Remote navigation marker block in header.php")
+        if body not in PREVIOUS_BODIES:
+            raise ValueError("managed navigation include was changed; refusing to upgrade it")
+        indent = re.match(r"^(\s*)", lines[start]).group(1)
+        newline = "\r\n" if "\r\n" in text else "\n"
+        lines[start + 1:end] = [indent + line + newline for line in CURRENT_BODY]
+        return "".join(lines)
 
     newline = "\r\n" if "\r\n" in text else "\n"
     lines = text.splitlines()
@@ -49,7 +68,7 @@ def apply(text: str) -> str:
     indent = re.match(r"^(\s*)", lines[anchor]).group(1)
     lines[anchor + 1:anchor + 1] = [
         indent + BEGIN,
-        indent + SCRIPT,
+        *(indent + line for line in CURRENT_BODY),
         indent + END,
     ]
     return newline.join(lines) + (newline if text.endswith(("\n", "\r\n")) else "")
@@ -59,14 +78,10 @@ def remove(text: str) -> str:
     if BEGIN not in text and END not in text:
         return text
     lines = text.splitlines(keepends=True)
-    starts = [i for i, line in enumerate(lines) if line.strip() == BEGIN]
-    ends = [i for i, line in enumerate(lines) if line.strip() == END]
-    if len(starts) != 1 or len(ends) != 1 or starts[0] >= ends[0]:
-        raise ValueError("invalid Siri Remote navigation marker block in header.php")
-    body = [line.strip() for line in lines[starts[0] + 1:ends[0]] if line.strip()]
-    if body != [SCRIPT] and body not in ([previous] for previous in PREVIOUS_SCRIPTS):
+    start, end, body = managed_block(lines)
+    if body != CURRENT_BODY and body not in PREVIOUS_BODIES:
         raise ValueError("managed navigation include was changed; refusing to remove it")
-    del lines[starts[0]:ends[0] + 1]
+    del lines[start:end + 1]
     return "".join(lines)
 
 

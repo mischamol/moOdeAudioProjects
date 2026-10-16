@@ -32,6 +32,19 @@ class HeaderPatchTests(unittest.TestCase):
         self.assertIn(patch_header.SCRIPT, installed)
         self.assertEqual(patch_header.remove(installed), BUILT_HEADER)
 
+    def test_navigation_include_is_server_side_local_only(self):
+        installed = patch_header.apply(HEADER)
+        self.assertIn(patch_header.LOCAL_ONLY_BEGIN, installed)
+        self.assertIn(patch_header.LOCAL_ONLY_END, installed)
+        self.assertLess(
+            installed.index(patch_header.LOCAL_ONLY_BEGIN),
+            installed.index(patch_header.SCRIPT),
+        )
+        self.assertLess(
+            installed.index(patch_header.SCRIPT),
+            installed.index(patch_header.LOCAL_ONLY_END),
+        )
+
     def test_previous_include_is_upgraded_and_remains_removable(self):
         for previous_script in patch_header.PREVIOUS_SCRIPTS:
             with self.subTest(previous_script=previous_script):

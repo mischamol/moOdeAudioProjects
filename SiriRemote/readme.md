@@ -417,6 +417,11 @@ paused, stopped, or reconnecting. Selecting an item that starts playback
 therefore also returns the local display to fullscreen Playback after five
 seconds of no further interaction. Browser sessions opened over the network
 from a phone or laptop never start this timer and retain their chosen view.
+The marked header block includes the navigation script only for loopback
+requests from the Raspberry Pi's local kiosk. Network-browser sessions never
+receive it, so their clicks, taps, menus, and scrolling remain entirely native
+moOde behavior. A matching JavaScript guard provides defence in depth. Only
+the local kiosk receives the Siri Remote focus and inactivity handling.
 
 General moOde styling is deliberately not part of SiriRemote. The separately
 installable [LiquidGlassTheme](../LiquidGlassTheme/readme.md) provides the
