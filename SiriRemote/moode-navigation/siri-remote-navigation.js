@@ -20,6 +20,13 @@
     const OVERLAY_URL = 'http://127.0.0.1:8765/overlay';
     const LOCAL_DISPLAY_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
     const IS_LOCAL_DISPLAY = LOCAL_DISPLAY_HOSTS.has(window.location.hostname);
+
+    // This integration translates keyboard-like events from the Siri Remote
+    // daemon into local kiosk navigation. Network clients must use moOde's
+    // native touch/mouse handling exclusively; even passive capture listeners
+    // can otherwise interfere with a real phone's pointer/click sequence.
+    if (!IS_LOCAL_DISPLAY) return;
+
     let selected = null;
     let playbackReturnTimer = null;
     let continuationTimer = null;
@@ -82,7 +89,7 @@
             font-family: Lato, sans-serif;
             border: 1px solid rgba(255,255,255,.32);
             box-shadow: inset 5px 8px 10px rgba(255,255,255,.46),
-                        inset -8px -14px 22px rgba(0,0,0,.24),
+                        inset -8px -14px 22px rgba(0,0,0,.22),
                         0 24px 54px rgba(0,0,0,.42),
                         0 6px 15px rgba(0,0,0,.18);
             -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%);
@@ -107,10 +114,10 @@
         }
         #siri-browser-overlay .siri-overlay-glass,
         #siri-browser-overlay .siri-overlay-lens::before {
-            background-color: rgba(16,19,24,.90);
+            background-color: rgba(0,0,0,.80);
             background-image:
                 radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
-                linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18));
+                linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.16));
         }
         #siri-browser-overlay .siri-overlay-lens::after {
             content: '';
