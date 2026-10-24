@@ -1,11 +1,11 @@
-:root.liquid-glass-theme {
-    --liquid-glass-panel: rgba(24, 28, 35, .11);
-    --liquid-glass-control: rgba(255, 255, 255, .025);
-    --liquid-glass-border: rgba(255, 255, 255, .34);
-    --liquid-glass-shadow: rgba(0, 0, 0, .28);
+:root.dark-glass-theme {
+    --dark-glass-panel: rgba(24, 28, 35, .11);
+    --dark-glass-control: rgba(255, 255, 255, .025);
+    --dark-glass-border: rgba(255, 255, 255, .34);
+    --dark-glass-shadow: rgba(0, 0, 0, .28);
 }
 
-:root.liquid-glass-theme body {
+:root.dark-glass-theme body {
     background-image:
         radial-gradient(circle at 14% 8%, rgba(255,255,255,.12), transparent 29%),
         radial-gradient(circle at 84% 24%, var(--accentxta), transparent 40%),
@@ -16,12 +16,12 @@
 /* Playback uses the cover itself as a sharp, full-screen backdrop. Apply the
    same translucent material as the Library playbar as a separate veil so the
    artwork remains crisp and controls can look through one continuous layer. */
-:root.liquid-glass-theme #cover-backdrop {
+:root.dark-glass-theme #cover-backdrop {
     filter: none !important;
     transform: none !important;
 }
 
-:root.liquid-glass-theme #cover-backdrop::after {
+:root.dark-glass-theme #cover-backdrop::after {
     content: '';
     position: absolute;
     z-index: 1;
@@ -33,20 +33,20 @@
     pointer-events: none;
 }
 
-:root.liquid-glass-theme #content:has(#playback-panel.active),
-:root.liquid-glass-theme.liquid-glass-library-visible #content {
+:root.dark-glass-theme #content:has(#playback-panel.active),
+:root.dark-glass-theme.dark-glass-library-visible #content {
     background-color: transparent !important;
 }
 
 /* Preserve contrast over bright artwork without drawing a dark text panel. */
-:root.liquid-glass-theme #songsand,
-:root.liquid-glass-theme #ss-metadata,
-:root.liquid-glass-theme #mobile-time,
-:root.liquid-glass-theme #playbar-time,
-:root.liquid-glass-theme #extra-tags-display,
-:root.liquid-glass-theme #songsand-sample-rate,
-:root.liquid-glass-theme #countdown-display,
-:root.liquid-glass-theme #total {
+:root.dark-glass-theme #songsand,
+:root.dark-glass-theme #ss-metadata,
+:root.dark-glass-theme #mobile-time,
+:root.dark-glass-theme #playbar-time,
+:root.dark-glass-theme #extra-tags-display,
+:root.dark-glass-theme #songsand-sample-rate,
+:root.dark-glass-theme #countdown-display,
+:root.dark-glass-theme #total {
     text-shadow:
         -1px -1px 2px rgba(0,0,0,.90),
          1px -1px 2px rgba(0,0,0,.90),
@@ -55,33 +55,33 @@
          0 2px 6px rgba(0,0,0,.75);
 }
 
-:root.liquid-glass-theme #timeline .timeline-bg,
-:root.liquid-glass-theme #playbar-timeline .timeline-bg {
+:root.dark-glass-theme #timeline .timeline-bg,
+:root.dark-glass-theme #playbar-timeline .timeline-bg {
     box-shadow: 0 0 0 1px rgba(0,0,0,.68), 0 1px 4px rgba(0,0,0,.70);
 }
 
-:root.liquid-glass-theme #timeline .timeline-progress,
-:root.liquid-glass-theme #playbar-timeline .timeline-progress {
+:root.dark-glass-theme #timeline .timeline-progress,
+:root.dark-glass-theme #playbar-timeline .timeline-progress {
     box-shadow: 0 0 0 1px rgba(0,0,0,.50), 0 1px 3px rgba(0,0,0,.60);
 }
 
-:root.liquid-glass-theme #panel-header,
-:root.liquid-glass-theme #playbar,
-:root.liquid-glass-theme #playback-controls,
-:root.liquid-glass-theme .modal-content {
+:root.dark-glass-theme #panel-header,
+:root.dark-glass-theme #playbar,
+:root.dark-glass-theme #playback-controls,
+:root.dark-glass-theme .modal-content {
     background:
         radial-gradient(circle at 18% 0, rgba(255,255,255,.14), transparent 38%),
-        linear-gradient(145deg, rgba(255,255,255,.035), var(--liquid-glass-panel)) !important;
-    border: 1px solid var(--liquid-glass-border) !important;
+        linear-gradient(145deg, rgba(255,255,255,.035), var(--dark-glass-panel)) !important;
+    border: 1px solid var(--dark-glass-border) !important;
     border-radius: 1.35rem !important;
-    box-shadow: 0 14px 42px var(--liquid-glass-shadow),
+    box-shadow: 0 14px 42px var(--dark-glass-shadow),
                 inset 0 1px 0 rgba(255,255,255,.30),
                 inset 0 -1px 0 rgba(255,255,255,.08) !important;
     -webkit-backdrop-filter: blur(4px) saturate(145%) contrast(103%) !important;
     backdrop-filter: blur(4px) saturate(145%) contrast(103%) !important;
 }
 
-:root.liquid-glass-theme #panel-header {
+:root.dark-glass-theme #panel-header {
     border-radius: 0 0 1.35rem 1.35rem !important;
 }
 
@@ -89,8 +89,8 @@
    both the same true-circle geometry as the compact Shuffle control in every
    view; explicit min/max dimensions prevent moOde's native padding and brand
    layout from turning either surface into a square or oval. */
-:root.liquid-glass-theme #panel-header #menu-cdsp,
-:root.liquid-glass-theme #panel-header #menu-settings {
+:root.dark-glass-theme #panel-header #menu-cdsp,
+:root.dark-glass-theme #panel-header #menu-settings {
     box-sizing: border-box !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -110,8 +110,8 @@
 
 /* moOde positions both layers of its m brand for the original padded link.
    Re-center them inside the now circular control. */
-:root.liquid-glass-theme #panel-header #menu-settings #mblur,
-:root.liquid-glass-theme #panel-header #menu-settings #mbrand {
+:root.dark-glass-theme #panel-header #menu-settings #mblur,
+:root.dark-glass-theme #panel-header #menu-settings #mbrand {
     inset: 0 !important;
     display: flex !important;
     align-items: center !important;
@@ -125,14 +125,14 @@
 }
 
 /* Avoid re-blurring the moving album grid on every Library scroll frame. */
-:root.liquid-glass-theme.liquid-glass-library-visible #panel-header {
+:root.dark-glass-theme.dark-glass-library-visible #panel-header {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
 }
 
-:root.liquid-glass-theme #playback-controls,
-:root.liquid-glass-theme #playbtns,
-:root.liquid-glass-theme #togglebtns {
+:root.dark-glass-theme #playback-controls,
+:root.dark-glass-theme #playbtns,
+:root.dark-glass-theme #togglebtns {
     background: transparent !important;
     border-color: transparent !important;
     box-shadow: none !important;
@@ -140,12 +140,12 @@
     backdrop-filter: none !important;
 }
 
-:root.liquid-glass-theme button.btn,
-:root.liquid-glass-theme .btn-group > .btn,
-:root.liquid-glass-theme #playbar-switch,
-:root.liquid-glass-theme input:not([type='range']),
-:root.liquid-glass-theme select {
-    background: linear-gradient(145deg, rgba(255,255,255,.07), var(--liquid-glass-control)) !important;
+:root.dark-glass-theme button.btn,
+:root.dark-glass-theme .btn-group > .btn,
+:root.dark-glass-theme #playbar-switch,
+:root.dark-glass-theme input:not([type='range']),
+:root.dark-glass-theme select {
+    background: linear-gradient(145deg, rgba(255,255,255,.07), var(--dark-glass-control)) !important;
     border: 1px solid rgba(255,255,255,.28) !important;
     border-radius: 999px !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.28),
@@ -158,8 +158,8 @@
 /* Give every ordinary moOde action the same raised, tint-free glass material
    as the transport controls. More specific rules below preserve menu rows,
    transport sizing and the performance-oriented Library exceptions. */
-:root.liquid-glass-theme .btn,
-:root.liquid-glass-theme #playbar-switch {
+:root.dark-glass-theme .btn,
+:root.dark-glass-theme #playbar-switch {
     background:
         radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.22), transparent 34%),
         radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.13), transparent 56%),
@@ -179,17 +179,17 @@
          0 2px 6px rgba(0,0,0,.66) !important;
 }
 
-:root.liquid-glass-theme .btn i,
-:root.liquid-glass-theme .btn .fa,
-:root.liquid-glass-theme .btn .material-icons,
-:root.liquid-glass-theme .btn svg,
-:root.liquid-glass-theme #playbar-switch i {
+:root.dark-glass-theme .btn i,
+:root.dark-glass-theme .btn .fa,
+:root.dark-glass-theme .btn .material-icons,
+:root.dark-glass-theme .btn svg,
+:root.dark-glass-theme #playbar-switch i {
     filter: drop-shadow(0 2px 6px rgba(0,0,0,.45));
 }
 
-:root.liquid-glass-theme button.btn:hover,
-:root.liquid-glass-theme button.btn:focus,
-:root.liquid-glass-theme .btn-group > .btn:hover {
+:root.dark-glass-theme button.btn:hover,
+:root.dark-glass-theme button.btn:focus,
+:root.dark-glass-theme .btn-group > .btn:hover {
     background:
         radial-gradient(ellipse at 25% 9%, rgba(255,255,255,.30), transparent 36%),
         radial-gradient(ellipse at 72% 94%, rgba(0,0,0,.11), transparent 56%),
@@ -197,7 +197,7 @@
     border-color: rgba(255,255,255,.42) !important;
 }
 
-:root.liquid-glass-theme input:not([type='range']) {
+:root.dark-glass-theme input:not([type='range']) {
     box-sizing: border-box !important;
     padding-left: .85em !important;
     padding-right: .85em !important;
@@ -207,15 +207,15 @@
 /* Native select popups are painted by the browser/OS rather than by the
    translucent control itself. Give their rows an explicit light surface and
    dark text so every theme name remains readable. */
-:root.liquid-glass-theme select option,
-:root.liquid-glass-theme select optgroup {
+:root.dark-glass-theme select option,
+:root.dark-glass-theme select optgroup {
     background: #f2f3f5 !important;
     color: #171a20 !important;
     text-shadow: none !important;
 }
 
 /* Menu rows stay rows instead of appearing as several active pills. */
-:root.liquid-glass-theme .dropdown-menu {
+:root.dark-glass-theme .dropdown-menu {
     background-color: rgba(16, 19, 24, .90) !important;
     background-image:
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
@@ -231,7 +231,7 @@
 }
 
 /* Preserve CamillaDSP's identifying artwork on the same lightweight material. */
-:root.liquid-glass-theme #dropdown-cdsp-menu {
+:root.dark-glass-theme #dropdown-cdsp-menu {
     background-image:
         url(../images/camilladsp.svg),
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
@@ -241,8 +241,8 @@
     background-size: 5em, auto, auto !important;
 }
 
-:root.liquid-glass-theme .dropdown-menu > li > a,
-:root.liquid-glass-theme .dropdown-menu .btn {
+:root.dark-glass-theme .dropdown-menu > li > a,
+:root.dark-glass-theme .dropdown-menu .btn {
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -252,8 +252,8 @@
     backdrop-filter: none !important;
 }
 
-:root.liquid-glass-theme .dropdown-menu > li > a:not([data-cmd='theme-name-sel']),
-:root.liquid-glass-theme .dropdown-menu .btn {
+:root.dark-glass-theme .dropdown-menu > li > a:not([data-cmd='theme-name-sel']),
+:root.dark-glass-theme .dropdown-menu .btn {
     background: transparent !important;
 }
 
@@ -261,42 +261,42 @@
    inline background and text colours. Do not replace those swatches with the
    generic transparent/hover material: light themes such as Green Tea need
    their light background to keep their dark preview text readable. */
-:root.liquid-glass-theme #theme-name-list > li > a[data-cmd='theme-name-sel'] .text {
+:root.dark-glass-theme #theme-name-list > li > a[data-cmd='theme-name-sel'] .text {
     text-shadow: none !important;
 }
 
-:root.liquid-glass-theme .dropdown-menu > li > a:not([data-cmd='theme-name-sel']):hover,
-:root.liquid-glass-theme .dropdown-menu > li > a:not([data-cmd='theme-name-sel']):focus,
-:root.liquid-glass-theme .dropdown-menu .btn:hover,
-:root.liquid-glass-theme .dropdown-menu .btn:focus {
+:root.dark-glass-theme .dropdown-menu > li > a:not([data-cmd='theme-name-sel']):hover,
+:root.dark-glass-theme .dropdown-menu > li > a:not([data-cmd='theme-name-sel']):focus,
+:root.dark-glass-theme .dropdown-menu .btn:hover,
+:root.dark-glass-theme .dropdown-menu .btn:focus {
     background: linear-gradient(90deg, rgba(255,255,255,.16), rgba(255,255,255,.06)) !important;
     color: #fff !important;
     box-shadow: inset 3px 0 0 rgba(255,255,255,.70) !important;
 }
 
-:root.liquid-glass-theme .dropdown-menu .menu-separator,
-:root.liquid-glass-theme .dropdown-menu .divider {
+:root.dark-glass-theme .dropdown-menu .menu-separator,
+:root.dark-glass-theme .dropdown-menu .divider {
     border-color: rgba(255,255,255,.18) !important;
 }
 
 /* Keep moOde's native Library playbar layout while giving its existing
    surface and controls the same tint-free glass material as Playback. */
-:root.liquid-glass-theme #panel-footer {
+:root.dark-glass-theme #panel-footer {
     background-color: rgba(16, 19, 24, .90) !important;
     background-image:
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
         linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
-    border: 1px solid var(--liquid-glass-border) !important;
+    border: 1px solid var(--dark-glass-border) !important;
     border-bottom: none !important;
     border-radius: 1.35rem 1.35rem 0 0 !important;
-    box-shadow: 0 -14px 42px var(--liquid-glass-shadow),
+    box-shadow: 0 -14px 42px var(--dark-glass-shadow),
                 inset 0 1px 0 rgba(255,255,255,.30) !important;
     -webkit-backdrop-filter: blur(4px) saturate(145%) contrast(103%) !important;
     backdrop-filter: blur(4px) saturate(145%) contrast(103%) !important;
 }
 
-:root.liquid-glass-theme #panel-footer #playbar,
-:root.liquid-glass-theme #panel-footer #playbar-switch {
+:root.dark-glass-theme #panel-footer #playbar,
+:root.dark-glass-theme #panel-footer #playbar-switch {
     background: transparent !important;
     border: none !important;
     border-radius: 0 !important;
@@ -305,8 +305,8 @@
     backdrop-filter: none !important;
 }
 
-:root.liquid-glass-theme #panel-footer #playbar-controls .btn,
-:root.liquid-glass-theme #panel-footer #playbar-toggles .btn {
+:root.dark-glass-theme #panel-footer #playbar-controls .btn,
+:root.dark-glass-theme #panel-footer #playbar-toggles .btn {
     position: relative !important;
     isolation: isolate;
     overflow: hidden !important;
@@ -324,7 +324,7 @@
 
 /* Portrait media rules otherwise make some compact toggle buttons taller than
    they are wide. Icon buttons stay circular; labels may grow horizontally. */
-:root.liquid-glass-theme #panel-footer #playbar-toggles .btn {
+:root.dark-glass-theme #panel-footer #playbar-toggles .btn {
     box-sizing: border-box !important;
     width: auto !important;
     min-width: 3rem !important;
@@ -341,7 +341,7 @@
 /* The compact actions contain only an icon and should therefore remain true
    circles on both the local portrait display and wide browser layouts. The
    volume control is the sole labelled action and may remain a wider capsule. */
-:root.liquid-glass-theme #panel-footer #playbar-toggles .btn:not(#playbar-volume-popup-btn) {
+:root.dark-glass-theme #panel-footer #playbar-toggles .btn:not(#playbar-volume-popup-btn) {
     width: 3rem !important;
     min-width: 3rem !important;
     max-width: 3rem !important;
@@ -353,15 +353,15 @@
    than Play, making their content-sized glass surfaces vertically oval. Keep
    all three existing transport controls square without affecting portrait. */
 @media (min-width: 480px) {
-    :root.liquid-glass-theme #panel-footer #playbar-controls,
-    :root.liquid-glass-theme #panel-footer #playbar-toggles {
+    :root.dark-glass-theme #panel-footer #playbar-controls,
+    :root.dark-glass-theme #panel-footer #playbar-toggles {
         top: 50% !important;
         bottom: auto !important;
         transform: translateY(-50%) !important;
         align-items: center !important;
     }
 
-    :root.liquid-glass-theme #panel-footer #playbar-controls .btn {
+    :root.dark-glass-theme #panel-footer #playbar-controls .btn {
         box-sizing: border-box !important;
         flex: 0 0 3.5rem !important;
         aspect-ratio: 1 / 1 !important;
@@ -380,12 +380,12 @@
         vertical-align: middle !important;
     }
 
-    :root.liquid-glass-theme #panel-footer #playbar-toggles .btn {
+    :root.dark-glass-theme #panel-footer #playbar-toggles .btn {
         margin-top: 0 !important;
         margin-bottom: 0 !important;
     }
 
-    :root.liquid-glass-theme #panel-footer #playbar-controls .btn i {
+    :root.dark-glass-theme #panel-footer #playbar-controls .btn i {
         line-height: 1 !important;
         vertical-align: middle !important;
     }
@@ -396,11 +396,11 @@
    merge with the neighbouring control. This follows the generic toggle sizes
    above so these portrait dimensions remain authoritative. */
 @media (max-width: 479px) and (orientation: portrait) {
-    :root.liquid-glass-theme #panel-footer #playbar-controls {
+    :root.dark-glass-theme #panel-footer #playbar-controls {
         column-gap: 5px !important;
     }
 
-    :root.liquid-glass-theme #panel-footer #playbar-controls .btn {
+    :root.dark-glass-theme #panel-footer #playbar-controls .btn {
         box-sizing: border-box !important;
         flex: 0 0 38px !important;
         aspect-ratio: 1 / 1 !important;
@@ -415,18 +415,18 @@
         border-radius: 50% !important;
     }
 
-    :root.liquid-glass-theme #panel-footer #playbar-controls .btn + .btn {
+    :root.dark-glass-theme #panel-footer #playbar-controls .btn + .btn {
         margin-left: 5px !important;
     }
 
-    :root.liquid-glass-theme #panel-footer #playbar-toggles {
+    :root.dark-glass-theme #panel-footer #playbar-toggles {
         column-gap: 4px !important;
         align-items: center !important;
     }
 
     /* Keep the whole compact action row equally high on phones. Volume may
        grow horizontally for its label, but uses the same 26px lens height. */
-    :root.liquid-glass-theme #panel-footer #playbar-toggles .btn {
+    :root.dark-glass-theme #panel-footer #playbar-toggles .btn {
         box-sizing: border-box !important;
         flex: 0 0 auto !important;
         width: auto !important;
@@ -442,7 +442,7 @@
         line-height: 1 !important;
     }
 
-    :root.liquid-glass-theme #panel-footer #playbar-toggles .btn:not(#playbar-volume-popup-btn) {
+    :root.dark-glass-theme #panel-footer #playbar-toggles .btn:not(#playbar-volume-popup-btn) {
         box-sizing: border-box !important;
         flex: 0 0 26px !important;
         aspect-ratio: 1 / 1 !important;
@@ -456,39 +456,39 @@
         border-radius: 50% !important;
     }
 
-    :root.liquid-glass-theme #panel-footer #playbar-toggles .btn + .btn {
+    :root.dark-glass-theme #panel-footer #playbar-toggles .btn + .btn {
         margin-left: 4px !important;
     }
 }
 
-:root.liquid-glass-theme #panel-footer #playbar-controls .btn i,
-:root.liquid-glass-theme #panel-footer #playbar-toggles .btn i,
-:root.liquid-glass-theme #panel-footer #playbar-toggles .btn span {
+:root.dark-glass-theme #panel-footer #playbar-controls .btn i,
+:root.dark-glass-theme #panel-footer #playbar-toggles .btn i,
+:root.dark-glass-theme #panel-footer #playbar-toggles .btn span {
     filter: drop-shadow(0 2px 6px rgba(0,0,0,.45));
 }
 
 /* Fixed backdrop filters force Chromium to re-blur the moving album grid on
    every frame. Keep the gradients, rims and shadows, but suspend live blur
    for the footer and its buttons while a Library view is visible. */
-:root.liquid-glass-theme.liquid-glass-library-visible #panel-footer,
-:root.liquid-glass-theme.liquid-glass-library-visible #panel-footer #playbar-controls .btn,
-:root.liquid-glass-theme.liquid-glass-library-visible #panel-footer #playbar-toggles .btn {
+:root.dark-glass-theme.dark-glass-library-visible #panel-footer,
+:root.dark-glass-theme.dark-glass-library-visible #panel-footer #playbar-controls .btn,
+:root.dark-glass-theme.dark-glass-library-visible #panel-footer #playbar-toggles .btn {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
 }
 
 /* Without live blur, Library labels behind the fixed footer remain sharply
    visible. A static dark glass fill hides that visual noise at no repaint cost. */
-:root.liquid-glass-theme.liquid-glass-library-visible #panel-footer {
+:root.dark-glass-theme.dark-glass-library-visible #panel-footer {
     background-color: rgba(16, 19, 24, .90) !important;
     background-image:
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
         linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18)) !important;
 }
 
-:root.liquid-glass-theme #panel-footer #playbar-currentsong,
-:root.liquid-glass-theme #panel-footer #playbar-title-line-2,
-:root.liquid-glass-theme #panel-footer #playbar-currentalbum {
+:root.dark-glass-theme #panel-footer #playbar-currentsong,
+:root.dark-glass-theme #panel-footer #playbar-title-line-2,
+:root.dark-glass-theme #panel-footer #playbar-currentalbum {
     display: block !important;
     max-width: 100% !important;
     overflow: hidden !important;
@@ -502,8 +502,8 @@
          0 2px 7px rgba(0,0,0,.78) !important;
 }
 
-:root.liquid-glass-theme #playbtns .btn,
-:root.liquid-glass-theme #togglebtns .btn {
+:root.dark-glass-theme #playbtns .btn,
+:root.dark-glass-theme #togglebtns .btn {
     background: transparent !important;
     border: 1px solid rgba(255,255,255,.42) !important;
     border-radius: 50% !important;
@@ -521,10 +521,10 @@
 
 /* Match the remote overlay's curved specular lens highlight on Playback's
    round transport and toggle controls without touching menu/text buttons. */
-:root.liquid-glass-theme #playbtns .btn::after,
-:root.liquid-glass-theme #togglebtns .btn::after,
-:root.liquid-glass-theme #panel-footer #playbar-controls .btn::after,
-:root.liquid-glass-theme #panel-footer #playbar-toggles .btn::after {
+:root.dark-glass-theme #playbtns .btn::after,
+:root.dark-glass-theme #togglebtns .btn::after,
+:root.dark-glass-theme #panel-footer #playbar-controls .btn::after,
+:root.dark-glass-theme #panel-footer #playbar-toggles .btn::after {
     content: '';
     position: absolute;
     z-index: 2;
@@ -539,23 +539,23 @@
     pointer-events: none;
 }
 
-:root.liquid-glass-theme #playbtns .btn > *,
-:root.liquid-glass-theme #togglebtns .btn > *,
-:root.liquid-glass-theme #panel-footer #playbar-controls .btn > *,
-:root.liquid-glass-theme #panel-footer #playbar-toggles .btn > * {
+:root.dark-glass-theme #playbtns .btn > *,
+:root.dark-glass-theme #togglebtns .btn > *,
+:root.dark-glass-theme #panel-footer #playbar-controls .btn > *,
+:root.dark-glass-theme #panel-footer #playbar-toggles .btn > * {
     position: relative;
     z-index: 3;
 }
 
-:root.liquid-glass-theme #playbtns .btn i,
-:root.liquid-glass-theme #togglebtns .btn i {
+:root.dark-glass-theme #playbtns .btn i,
+:root.dark-glass-theme #togglebtns .btn i {
     filter: drop-shadow(0 2px 9px rgba(0,0,0,.50));
 }
 
 /* Playback's compact icon actions are a different group from the Library
    playbar toggles. Native wide-screen sizing makes these pills; force equal
    dimensions while leaving the optional labelled volume control flexible. */
-:root.liquid-glass-theme #togglebtns .btn:not(.volume-popup-btn) {
+:root.dark-glass-theme #togglebtns .btn:not(.volume-popup-btn) {
     box-sizing: border-box !important;
     width: 3rem !important;
     min-width: 3rem !important;
@@ -575,11 +575,11 @@
    browser chrome reduces the available height. Portrait keeps the larger
    touch-friendly controls above. */
 @media (min-width: 480px) and (orientation: landscape) {
-    :root.liquid-glass-theme #togglebtns {
+    :root.dark-glass-theme #togglebtns {
         padding-top: .5rem !important;
     }
 
-    :root.liquid-glass-theme #togglebtns .btn:not(.volume-popup-btn) {
+    :root.dark-glass-theme #togglebtns .btn:not(.volume-popup-btn) {
         width: 2.25rem !important;
         min-width: 2.25rem !important;
         max-width: 2.25rem !important;
@@ -588,15 +588,15 @@
         max-height: 2.25rem !important;
     }
 
-    :root.liquid-glass-theme #togglebtns .volume-popup-btn {
+    :root.dark-glass-theme #togglebtns .volume-popup-btn {
         min-height: 2.25rem !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
     }
 }
 
-:root.liquid-glass-theme #playbtns .prev,
-:root.liquid-glass-theme #playbtns .next {
+:root.dark-glass-theme #playbtns .prev,
+:root.dark-glass-theme #playbtns .next {
     width: 23vw !important;
     height: 23vw !important;
     max-width: 8rem !important;
@@ -604,7 +604,7 @@
     padding: 0 !important;
 }
 
-:root.liquid-glass-theme #playbtns .play {
+:root.dark-glass-theme #playbtns .play {
     width: 25vw !important;
     height: 25vw !important;
     max-width: 8.75rem !important;
@@ -616,7 +616,7 @@
    buttons. Use bounded circles and an explicit gap so Previous, Play and Next
    never overlap or clip in laptop/desktop layouts. */
 @media (min-width: 480px) and (orientation: landscape) {
-    :root.liquid-glass-theme #playbtns .btn-group {
+    :root.dark-glass-theme #playbtns .btn-group {
         box-sizing: border-box !important;
         display: flex !important;
         align-items: center !important;
@@ -627,13 +627,13 @@
         margin-right: 0 !important;
     }
 
-    :root.liquid-glass-theme #playbtns .btn-group .btn {
+    :root.dark-glass-theme #playbtns .btn-group .btn {
         flex: 0 0 auto !important;
         margin: 0 !important;
     }
 
-    :root.liquid-glass-theme #playbtns .prev,
-    :root.liquid-glass-theme #playbtns .next {
+    :root.dark-glass-theme #playbtns .prev,
+    :root.dark-glass-theme #playbtns .next {
         width: 5.5rem !important;
         min-width: 5.5rem !important;
         max-width: 5.5rem !important;
@@ -642,7 +642,7 @@
         max-height: 5.5rem !important;
     }
 
-    :root.liquid-glass-theme #playbtns .play {
+    :root.dark-glass-theme #playbtns .play {
         width: 6rem !important;
         min-width: 6rem !important;
         max-width: 6rem !important;
@@ -652,36 +652,36 @@
     }
 }
 
-:root.liquid-glass-theme #albumcovers > li,
-:root.liquid-glass-theme #radio-covers > li,
-:root.liquid-glass-theme #playlist-covers > li,
-:root.liquid-glass-theme #folderlist > li,
-:root.liquid-glass-theme #albumsList > li,
-:root.liquid-glass-theme #playqueue-list > li {
+:root.dark-glass-theme #albumcovers > li,
+:root.dark-glass-theme #radio-covers > li,
+:root.dark-glass-theme #playlist-covers > li,
+:root.dark-glass-theme #folderlist > li,
+:root.dark-glass-theme #albumsList > li,
+:root.dark-glass-theme #playqueue-list > li {
     border-radius: 1rem !important;
 }
 
-:root.liquid-glass-theme #albumcovers img,
-:root.liquid-glass-theme #radio-covers img,
-:root.liquid-glass-theme #playlist-covers img {
+:root.dark-glass-theme #albumcovers img,
+:root.dark-glass-theme #radio-covers img,
+:root.dark-glass-theme #playlist-covers img {
     border-radius: 0 !important;
     box-shadow: none !important;
 }
 
 /* Playback and CoverView stay rounded; Library artwork remains square. */
-:root.liquid-glass-theme #coverart-url img,
-:root.liquid-glass-theme #ss-coverart-url img {
+:root.dark-glass-theme #coverart-url img,
+:root.dark-glass-theme #ss-coverart-url img {
     border-radius: 1.25rem !important;
     box-shadow: 0 12px 34px rgba(0,0,0,.28) !important;
 }
 
-:root.liquid-glass-theme #lib-coverart-img img {
+:root.dark-glass-theme #lib-coverart-img img {
     border-radius: 0 !important;
     box-shadow: none !important;
 }
 
 /* Optional integration with SiriRemote's keyboard-like focus marker. */
-:root.liquid-glass-theme .siri-remote-selected {
+:root.dark-glass-theme .siri-remote-selected {
     border-radius: 1.05rem !important;
     outline-color: rgba(255,255,255,.94) !important;
     background:
@@ -693,14 +693,14 @@
                 0 10px 30px rgba(0,0,0,.32) !important;
 }
 
-:root.liquid-glass-theme .siri-remote-selected * {
+:root.dark-glass-theme .siri-remote-selected * {
     color: inherit !important;
     text-shadow: 0 2px 6px rgba(0,0,0,.55) !important;
 }
 
 /* In the Library source menu, remote focus uses exactly the same row material
    as mouse/keyboard hover. Album-grid focus keeps its more visible outline. */
-:root.liquid-glass-theme.siri-remote-navigating #viewswitch .btn.siri-remote-selected {
+:root.dark-glass-theme.siri-remote-navigating #viewswitch .btn.siri-remote-selected {
     outline: none !important;
     outline-offset: 0 !important;
     border: none !important;

@@ -1,6 +1,6 @@
-# Liquid Glass theme for moOde Audio
+# Dark Glass theme for moOde Audio
 
-This patch adds **Liquid Glass** to moOde's existing theme selector. It provides
+This patch adds **Dark Glass** to moOde's existing theme selector. It provides
 transparent rounded surfaces, tint-free glass controls, readable metadata over
 cover artwork, lightweight glass menus, optimized Library scrolling, and a matching transparent focus
 style when the optional SiriRemote navigation patch is installed. The Album,
@@ -37,30 +37,30 @@ browsers on a phone, tablet, or computer. Reload an already-open browser once
 after installation. SiriRemote's command feedback overlay is deliberately not
 part of this theme and remains local to the Raspberry Pi display.
 
-<img width="350" alt="Liquid Glass Playback view" src="assets/liquid-glass-playback.png" />
+<img width="350" alt="Dark Glass Playback view" src="assets/dark-glass-playback.png" />
 <br><sub>Playback with tint-free glass controls and readable metadata over moOde's cover backdrop.</sub><br><br>
 
 <p>
-  <img width="350" alt="Liquid Glass Album view" src="assets/liquid-glass-album.png" />
-  <img width="350" alt="Liquid Glass Library menu" src="assets/liquid-glass-library.png" />
+  <img width="350" alt="Dark Glass Album view" src="assets/dark-glass-album.png" />
+  <img width="350" alt="Dark Glass Library menu" src="assets/dark-glass-library.png" />
 </p>
-<sub>Current neutral Liquid Glass views: the optimized Album grid with responsive glass playbar, and the normally opened static-glass Library menu. Neither image contains a temporary SiriRemote focus state.</sub><br><br>
+<sub>Current neutral Dark Glass views: the optimized Album grid with responsive glass playbar, and the normally opened static-glass Library menu. Neither image contains a temporary SiriRemote focus state.</sub><br><br>
 
 ## What the patch changes
 
 The installer:
 
-1. adds one `Liquid Glass` row to moOde's `cfg_theme` table;
-2. installs `liquid-glass-theme.css` and `liquid-glass-theme.js` below
+1. adds one `Dark Glass` row to moOde's `cfg_theme` table;
+2. installs `dark-glass-theme.css` and `dark-glass-theme.js` below
    `/var/www`;
 3. adds one clearly marked CSS/JavaScript include block to
    `/var/www/header.php`;
-4. stores the previously active theme and selects Liquid Glass by default;
+4. stores the previously active theme and selects Dark Glass by default;
 5. creates timestamped safety backups below
-   `/var/backups/moode-liquid-glass-theme`.
+   `/var/backups/moode-dark-glass-theme`.
 
 No additional package is installed. The CSS is applied only while moOde's
-active theme is `Liquid Glass`; choosing another theme in the GUI immediately
+active theme is `Dark Glass`; choosing another theme in the GUI immediately
 disables it. The database row supplies the standard moOde base colours, while
 the separate stylesheet provides effects that cannot be represented by
 moOde's four native theme colour fields. Playback and Library share the same
@@ -87,7 +87,7 @@ same fixed height; labelled controls such as Volume may only grow horizontally.
 
 ```sh
 git clone https://github.com/mischamol/moOdeAudioProjects.git
-cd moOdeAudioProjects/LiquidGlassTheme
+cd moOdeAudioProjects/DarkGlassTheme
 sudo sh ./install.sh
 ```
 
@@ -97,7 +97,7 @@ To register the theme without selecting it immediately:
 sudo sh ./install.sh --no-activate
 ```
 
-Open **Preferences → Appearance → Theme** and select **Liquid Glass**. Reload a
+Open **Preferences → Appearance → Theme** and select **Dark Glass**. Reload a
 network browser if it was already open. The local display is reloaded by the
 installer.
 
@@ -116,7 +116,7 @@ single version number, so a new release requires changing only
 Before publishing a change, run:
 
 ```sh
-node --check liquid-glass-theme.js
+node --check dark-glass-theme.js
 python3 -m unittest test_patch_header.py
 ```
 
@@ -126,11 +126,11 @@ after the current files had been installed.
 ## Uninstall
 
 ```sh
-cd moOdeAudioProjects/LiquidGlassTheme
+cd moOdeAudioProjects/DarkGlassTheme
 sudo sh ./uninstall.sh
 ```
 
-If Liquid Glass is active, the uninstaller restores the theme that was active
+If Dark Glass is active, the uninstaller restores the theme that was active
 before the first installation (or `Default` if that theme no longer exists).
 It removes only its own two web assets, marked header block, database row, and
 small previous-theme state file. Safety backups are retained.

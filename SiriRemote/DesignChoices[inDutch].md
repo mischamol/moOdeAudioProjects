@@ -171,21 +171,21 @@ niet weten welke knop de wake-up veroorzaakte. Dankzij de begrensde reconnect en
 de supervisietijd van 2000 ms blijven de volgende knoppen wel reageren; na het
 verbinden toont een volgende druk op Microfoon/Siri de batterijstand.
 
-## Optioneel los Liquid Glass-thema
+## Optioneel los Dark Glass-thema
 
 Algemene vormgeving van moOde hoort niet bij de verantwoordelijkheid van de
 Siri Remote-daemon. Deze CSS/JavaScript is daarom verplaatst naar het zelfstandig
-installeerbare [LiquidGlassTheme](../LiquidGlassTheme/readme.md). Het thema
+installeerbare [DarkGlassTheme](../DarkGlassTheme/readme.md). Het thema
 registreert zichzelf in moOde's bestaande themakiezer en kan ook zonder
 SiriRemote worden gebruikt.
 
 SiriRemote bevat alleen nog de functionele navigatiefocus en zijn ronde
 feedbackoverlay. Met een standaard moOde-thema gebruikt de focus de normale
-accentkleur. Liquid Glass geeft dezelfde focus optioneel een tintvrije glaslaag
+accentkleur. Dark Glass geeft dezelfde focus optioneel een tintvrije glaslaag
 met witte rand. De feedbackoverlay blijft in SiriRemote, werkt met ieder thema
-en is qua verhoudingen afgestemd op Liquid Glass wanneer dat thema actief is.
+en is qua verhoudingen afgestemd op Dark Glass wanneer dat thema actief is.
 
-Het JavaScript van Liquid Glass bewaakt alleen nog de actieve themakeuze en of
+Het JavaScript van Dark Glass bewaakt alleen nog de actieve themakeuze en of
 de Library zichtbaar is. De eerdere, inmiddels door CSS uitgeschakelde route
 die afzonderlijke coveruitsneden in iedere knop projecteerde is verwijderd.
 Daardoor doet scrollen en resizen geen overbodige geometrie- of DOM-berekening

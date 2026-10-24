@@ -1,10 +1,10 @@
-/* Native-selectable Liquid Glass extension for moOde Audio. */
+/* Native-selectable Dark Glass extension for moOde Audio. */
 (function () {
     'use strict';
 
-    const THEME_NAME = 'Liquid Glass';
-    const ROOT_CLASS = 'liquid-glass-theme';
-    const LIBRARY_CLASS = 'liquid-glass-library-visible';
+    const THEME_NAME = 'Dark Glass';
+    const ROOT_CLASS = 'dark-glass-theme';
+    const LIBRARY_CLASS = 'dark-glass-library-visible';
     let librarySwitch = null;
     let libraryObserver = null;
     let serverTheme = null;
