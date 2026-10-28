@@ -16,8 +16,13 @@ layouts. On Playback, these controls act as true glass lenses: they show a
 sharp, pixel-aligned continuation of moOde's cover backdrop while the page
 behind them remains blurred. Stronger asymmetric refraction, rim lighting, and
 depth shadows give both the transport and compact controls a convex appearance
-without placing an opaque tint over the artwork. Wide-screen footer controls
-are vertically centered and kept within
+without placing an opaque tint over the artwork. When SiriRemote is installed,
+the persistent round controls use the same rim strength, highlight shape, and
+light/dark depth balance as its overlay; unlike that overlay, their own fill
+remains transparent so the surrounding playbar or header supplies the dark
+base colour. Highlight blur and shadow distances are scaled to each control's
+diameter, preventing small buttons from looking whiter than the much larger
+overlay. Wide-screen footer controls are vertically centered and kept within
 the footer instead of touching or crossing the viewport edge. The compact
 fullscreen toggle row uses smaller true circles on landscape displays so it
 also remains fully visible when browser chrome reduces the viewport height.

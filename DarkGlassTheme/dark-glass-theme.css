@@ -106,6 +106,18 @@
     line-height: 1 !important;
     vertical-align: middle !important;
     transform: translateY(-.55rem) !important;
+    position: relative !important;
+    isolation: isolate;
+    overflow: hidden !important;
+    --dark-glass-highlight-blur: .55px;
+    background: transparent !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
+    box-shadow: inset 1px 1.5px 2px rgba(255,255,255,.46),
+                inset -1.5px -2.5px 3.5px rgba(0,0,0,.24),
+                0 4px 10px rgba(0,0,0,.42),
+                0 1.5px 4px rgba(0,0,0,.18) !important;
+    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
+    backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
 }
 
 /* moOde positions both layers of its m brand for the original padded link.
@@ -121,7 +133,10 @@
     margin: 0 !important;
     line-height: 1 !important;
     text-align: center !important;
-    transform: translateY(-.1rem) !important;
+    /* The lowercase m has more visual weight on its right-hand side. Shift
+       both brand layers slightly left for optical, rather than merely
+       geometric, centering inside the circular button. */
+    transform: translate(-.55rem, -.1rem) !important;
 }
 
 /* Avoid re-blurring the moving album grid on every Library scroll frame. */
@@ -310,16 +325,16 @@
     position: relative !important;
     isolation: isolate;
     overflow: hidden !important;
+    --dark-glass-highlight-blur: .45px;
     background: transparent !important;
-    border: 1px solid rgba(255,255,255,.42) !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
     border-radius: 50% !important;
-    box-shadow: inset 3px 5px 7px rgba(255,255,255,.56),
-                inset -5px -9px 13px rgba(0,0,0,.34),
-                inset 0 -2px 4px rgba(255,255,255,.12),
-                0 12px 28px rgba(0,0,0,.44),
-                0 4px 9px rgba(0,0,0,.22) !important;
-    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
-    backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
+    box-shadow: inset 1px 1.5px 2px rgba(255,255,255,.46),
+                inset -1.5px -2.5px 3.5px rgba(0,0,0,.24),
+                0 4px 10px rgba(0,0,0,.42),
+                0 1.5px 4px rgba(0,0,0,.18) !important;
+    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
+    backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
 }
 
 /* Portrait media rules otherwise make some compact toggle buttons taller than
@@ -504,23 +519,25 @@
 
 :root.dark-glass-theme #playbtns .btn,
 :root.dark-glass-theme #togglebtns .btn {
+    --dark-glass-highlight-blur: 1px;
     background: transparent !important;
-    border: 1px solid rgba(255,255,255,.42) !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
     border-radius: 50% !important;
-    box-shadow: inset 7px 12px 16px rgba(255,255,255,.56),
-                inset -11px -20px 30px rgba(0,0,0,.34),
-                inset 0 -3px 7px rgba(255,255,255,.12),
-                0 28px 60px rgba(0,0,0,.46),
-                0 7px 17px rgba(0,0,0,.22) !important;
-    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
-    backdrop-filter: blur(1px) saturate(155%) contrast(104%) brightness(102.5%) !important;
+    box-shadow: inset 2px 3px 4px rgba(255,255,255,.46),
+                inset -3px -5px 7px rgba(0,0,0,.24),
+                0 9px 20px rgba(0,0,0,.42),
+                0 2.5px 6px rgba(0,0,0,.18) !important;
+    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
+    backdrop-filter: blur(1px) saturate(155%) contrast(104%) !important;
     overflow: hidden !important;
     position: relative !important;
     isolation: isolate;
 }
 
-/* Match the remote overlay's curved specular lens highlight on Playback's
-   round transport and toggle controls without touching menu/text buttons. */
+/* Match the remote overlay's curved specular highlight on every persistent
+   round icon control while leaving menu rows and text actions untouched. */
+:root.dark-glass-theme #panel-header #menu-cdsp::after,
+:root.dark-glass-theme #panel-header #menu-settings::after,
 :root.dark-glass-theme #playbtns .btn::after,
 :root.dark-glass-theme #togglebtns .btn::after,
 :root.dark-glass-theme #panel-footer #playbar-controls .btn::after,
@@ -528,17 +545,19 @@
     content: '';
     position: absolute;
     z-index: 2;
-    left: 14%;
-    top: 6%;
-    width: 54%;
-    height: 18%;
+    left: 16%;
+    top: 7%;
+    width: 46%;
+    height: 14%;
     border-radius: 50%;
-    background: linear-gradient(180deg, rgba(255,255,255,.64), rgba(255,255,255,.09) 58%, transparent);
-    filter: blur(3.5px);
+    background: linear-gradient(180deg, rgba(255,255,255,.52), rgba(255,255,255,.06) 58%, transparent);
+    filter: blur(var(--dark-glass-highlight-blur, 1px));
     transform: rotate(-12deg);
     pointer-events: none;
 }
 
+:root.dark-glass-theme #panel-header #menu-cdsp > *,
+:root.dark-glass-theme #panel-header #menu-settings > *,
 :root.dark-glass-theme #playbtns .btn > *,
 :root.dark-glass-theme #togglebtns .btn > *,
 :root.dark-glass-theme #panel-footer #playbar-controls .btn > *,

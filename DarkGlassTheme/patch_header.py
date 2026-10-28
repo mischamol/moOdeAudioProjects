@@ -10,7 +10,7 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN DARK GLASS THEME -->"
 END = "<!-- END DARK GLASS THEME -->"
-ASSET_VERSION = 48
+ASSET_VERSION = 52
 SOURCE_ANCHOR = re.compile(
     r'^\s*<script src="js/scripts-panels\.js(?:\?[^\"]*)?" defer></script>\s*$'
 )
