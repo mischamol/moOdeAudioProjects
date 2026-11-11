@@ -1,0 +1,53 @@
+/* Lighter rendering for the Raspberry Pi: no motion artwork, no live blur. */
+amp-ambient-video,
+.video-artwork__container video {
+    display: none !important;
+}
+.navigation,
+.mini-player,
+.contextual-menu__trigger,
+.shelf-grid-nav__arrow,
+.favorite-button,
+.sliding-modal-collapse,
+.more-button,
+svg {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+@media (prefers-color-scheme: light) {
+    .navigation { background-color: #f6f6f6 !important; }
+}
+@media (prefers-color-scheme: dark) {
+    .navigation { background-color: #1e1e1e !important; }
+}
+
+#moode-return {
+    position: fixed;
+    right: 10px;
+    top: 58px;
+    z-index: 2147483647;
+    padding: 7px 13px;
+    border: 1px solid rgba(255, 255, 255, .25);
+    border-radius: 18px;
+    background: rgba(28, 28, 30, .9);
+    color: #fff;
+    font: 600 14px/1 -apple-system, "Helvetica Neue", Arial, sans-serif;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+    cursor: pointer;
+}
+#moode-return:active { transform: scale(.96); }
+
+/* The full-screen player has its own buttons where "‹ moOde" sits
+   (class set by content.js; a :has() rule here slowed every page change). */
+#moode-return.moode-hidden { display: none; }
+
+/* No animated backdrop or scrolling title in the full-screen player. */
+.dynamic-backdrop canvas { display: none !important; }
+.lcd-meta-line__marquee-scroller {
+    animation: none !important;
+    transform: none !important;
+}
+.sliding-modal-backdrop .backdrop,
+.dynamic-backdrop {
+    background: linear-gradient(180deg, #34343a 0%, #1b1b1f 55%, #0e0e10 100%) !important;
+}

@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "moOde Apple Music bridge",
+  "version": "1.7",
+  "description": "Return button to moOde and lighter Apple Music rendering for the Raspberry Pi.",
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "light",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://music.apple.com/*",
+        "https://*.music.apple.com/*"
+      ],
+      "js": [
+        "nowebgl.js",
+        "volume.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://music.apple.com/*",
+        "https://*.music.apple.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "host_permissions": [
+    "http://localhost/*"
+  ]
+}

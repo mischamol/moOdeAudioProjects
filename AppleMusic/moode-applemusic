@@ -1,0 +1,184 @@
+#!/bin/bash
+# moode-applemusic: open/close Apple Music Web on the moOde local display.
+#
+#   sudo moode-applemusic open [--debug]   start Apple Music on the local display
+#   sudo moode-applemusic close            close it again (moOde UI is shown)
+#   sudo moode-applemusic status           print "running" or "stopped"
+#
+# Apple Music runs in its own Chromium profile, so moOde's cache clearing at
+# every display start does not log you out. Audio goes to moOde's _audioout
+# ALSA device, which follows moOde's output chain (CamillaDSP -> DigiPi+).
+set -u
+
+UNIT=moode-applemusic
+CONF=/etc/default/moode-applemusic
+EXTENSION=/opt/moode-applemusic/extension
+
+APPLEMUSIC_URL=https://music.apple.com/nl/home
+APPLEMUSIC_ALSA_DEVICE=_audioout
+APPLEMUSIC_SCALE=
+APPLEMUSIC_STOP_MPD=yes
+APPLEMUSIC_FREEZE_MOODE=no
+APPLEMUSIC_EXTRA_FLAGS=
+# shellcheck disable=SC1090
+[ -r "$CONF" ] && . "$CONF"
+
+die() { echo "moode-applemusic: $*" >&2; exit 1; }
+[ "$(id -u)" -eq 0 ] || die "run as root (sudo)"
+
+display_user=$(systemctl show -p User --value localdisplay.service 2>/dev/null)
+[ -n "$display_user" ] || die "cannot determine the local display user"
+display_home=$(getent passwd "$display_user" | cut -d: -f6)
+profile="$display_home/.config/moode-applemusic"
+
+is_running() { systemctl is-active --quiet "$UNIT"; }
+
+# Reuse window size and scale of moOde's own kiosk browser, so Apple Music
+# covers exactly the same area.
+moode_browser_geometry() {
+    local pid args
+    for pid in $(pgrep -u "$display_user" -f -- '--app=http://localhost/'); do
+        args=$(tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null) || continue
+        size=$(printf '%s\n' "$args" | sed -n 's/^--window-size=//p' | head -n1)
+        scale=$(printf '%s\n' "$args" | sed -n 's/^--force-device-scale-factor=//p' | head -n1)
+        [ -n "$size" ] && return 0
+    done
+    return 1
+}
+
+# moOde's own browser keeps running underneath Apple Music. Pausing it while
+# Apple Music is open gives the CPU to Apple Music and CamillaDSP.
+moode_browser_pids() {
+    local main
+    main=$(pgrep -o -u "$display_user" -f -- '--app=http://localhost/') || return 0
+    echo "$main"
+    pgrep -u "$display_user" -f -- '--type=' | while read -r pid; do
+        local parent=$pid
+        while [ -n "$parent" ] && [ "$parent" -gt 1 ]; do
+            [ "$parent" = "$main" ] && { echo "$pid"; break; }
+            parent=$(awk '{print $4}' "/proc/$parent/stat" 2>/dev/null)
+        done
+    done
+}
+freeze_moode() { moode_browser_pids | xargs -r kill -STOP 2>/dev/null || true; }
+thaw_moode()   { moode_browser_pids | xargs -r kill -CONT 2>/dev/null || true; }
+
+# The Apple Music volume slider sets CamillaDSP directly. After Apple Music
+# closes, return CamillaDSP to moOde's own volume, as moOde does after AirPlay.
+restore_moode_volume() {
+    local sync
+    sync=$(moodeutl -q "SELECT value FROM cfg_system WHERE param='camilladsp_volume_sync'" 2>/dev/null)
+    /var/www/util/vol.sh -restore >/dev/null 2>&1 || true
+    if [ "$sync" = on ]; then
+        systemctl restart mpd2cdspvolume >/dev/null 2>&1 || true
+    fi
+}
+after_close() { thaw_moode; restore_moode_volume; }
+
+cmd_open() {
+    local debug=no
+    [ "${1:-}" = "--debug" ] && debug=yes
+
+    if is_running; then
+        echo "running"
+        return 0
+    fi
+    systemctl reset-failed "$UNIT" >/dev/null 2>&1 || true
+
+    if [ "$APPLEMUSIC_STOP_MPD" = yes ]; then
+        mpc -q stop >/dev/null 2>&1 || true
+    fi
+
+    size=""; scale=""
+    # moOde's browser may still be starting (e.g. right after a display restart).
+    local i
+    for i in $(seq 1 20); do
+        moode_browser_geometry && break
+        sleep 1
+    done
+    if [ -z "$size" ]; then
+        local res
+        res=$(DISPLAY=:0 xdpyinfo 2>/dev/null | awk '/dimensions:/ {print $2}')
+        [ -n "$res" ] || die "local display is not running"
+        scale=1
+        size="${res%x*},${res#*x}"
+    fi
+    if [ -n "$APPLEMUSIC_SCALE" ] && [ -n "$scale" ]; then
+        # Keep the same physical window, recompute CSS size for the new scale.
+        local w h
+        w=$(awk -v a="${size%,*}" -v s="$scale" -v n="$APPLEMUSIC_SCALE" 'BEGIN{printf "%d", a*s/n}')
+        h=$(awk -v a="${size#*,}" -v s="$scale" -v n="$APPLEMUSIC_SCALE" 'BEGIN{printf "%d", a*s/n}')
+        size="$w,$h"; scale="$APPLEMUSIC_SCALE"
+    fi
+    scale=${scale:-1}
+
+    install -d -o "$display_user" -g "$display_user" -m 0700 "$profile"
+    # Chromium writes an index for the network rules into the extension
+    # folder, so it needs a writable copy owned by the display user. The folder
+    # name follows the content: Chromium keeps using a cached service worker
+    # for an unchanged extension path, even after its files changed.
+    local hash ext_copy
+    hash=$(cat "$EXTENSION"/* | md5sum | cut -c1-10)
+    ext_copy="$profile/moode-extension-$hash"
+    rm -rf "$profile"/moode-extension "$profile"/moode-extension-*
+    cp -r "$EXTENSION" "$ext_copy"
+    chown -R "$display_user:$display_user" "$ext_copy"
+
+    local -a args=(
+        --user-data-dir="$profile"
+        --app="$APPLEMUSIC_URL"
+        --kiosk
+        --window-position=0,0
+        --window-size="$size"
+        --force-device-scale-factor="$scale"
+        --alsa-output-device="$APPLEMUSIC_ALSA_DEVICE"
+        --autoplay-policy=no-user-gesture-required
+        --force-prefers-reduced-motion
+        --load-extension="$ext_copy"
+        --enable-features=OverlayScrollbar
+        --disable-features=Translate,MediaRouter
+        --no-first-run
+        --no-default-browser-check
+        --noerrdialogs
+        --disable-infobars
+        --disable-session-crashed-bubble
+        --password-store=basic
+    )
+    [ "$debug" = yes ] && args+=(--remote-debugging-port=9222)
+    # shellcheck disable=SC2206
+    [ -n "$APPLEMUSIC_EXTRA_FLAGS" ] && args+=($APPLEMUSIC_EXTRA_FLAGS)
+
+    systemd-run --quiet --collect --unit="$UNIT" \
+        --uid="$display_user" --gid="$display_user" \
+        --working-directory="$display_home" \
+        --setenv=DISPLAY=:0 --setenv=HOME="$display_home" \
+        --setenv=PULSE_SERVER=/nonexistent \
+        -p KillMode=mixed -p TimeoutStopSec=8 \
+        -p "ExecStopPost=+/usr/local/bin/moode-applemusic after-close" \
+        /usr/bin/chromium-browser "${args[@]}" \
+        || die "failed to start Chromium"
+    if [ "$APPLEMUSIC_FREEZE_MOODE" = yes ]; then
+        # Give Apple Music time to cover the screen before pausing moOde.
+        ( sleep 6; is_running && freeze_moode ) >/dev/null 2>&1 &
+    fi
+    echo "started"
+}
+
+cmd_close() {
+    if is_running; then
+        systemctl stop "$UNIT"
+    fi
+    systemctl reset-failed "$UNIT" >/dev/null 2>&1 || true
+    thaw_moode
+    echo "stopped"
+}
+
+case "${1:-}" in
+    open)   shift; cmd_open "$@" ;;
+    close)  cmd_close ;;
+    toggle) if is_running; then cmd_close; else cmd_open; fi ;;
+    status) if is_running; then echo running; else echo stopped; fi ;;
+    thaw-moode) thaw_moode ;;
+    after-close) after_close ;;
+    *) echo "Usage: sudo moode-applemusic open [--debug] | close | toggle | status" >&2; exit 2 ;;
+esac
