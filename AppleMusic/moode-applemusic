@@ -2,8 +2,10 @@
 # moode-applemusic: open/close Apple Music Web on the moOde local display.
 #
 #   sudo moode-applemusic open [--debug]   start Apple Music on the local display
-#   sudo moode-applemusic close            close it again (moOde UI is shown)
-#   sudo moode-applemusic status           print "running" or "stopped"
+#   sudo moode-applemusic hide             hide it (music keeps playing; moOde UI is shown)
+#   sudo moode-applemusic show             show it again
+#   sudo moode-applemusic close            close it
+#   sudo moode-applemusic status           print "running", "hidden" or "stopped"
 #
 # Apple Music runs in its own Chromium profile, so moOde's cache clearing at
 # every display start does not log you out. Audio goes to moOde's _audioout
@@ -20,6 +22,7 @@ APPLEMUSIC_SCALE=
 APPLEMUSIC_STOP_MPD=yes
 APPLEMUSIC_FREEZE_MOODE=no
 APPLEMUSIC_EXTRA_FLAGS=
+APPLEMUSIC_COLOR_SCHEME=auto
 # shellcheck disable=SC1090
 [ -r "$CONF" ] && . "$CONF"
 
@@ -32,6 +35,43 @@ display_home=$(getent passwd "$display_user" | cut -d: -f6)
 profile="$display_home/.config/moode-applemusic"
 
 is_running() { systemctl is-active --quiet "$UNIT"; }
+
+# Runtime state shared with /var/www/applemusic.php (tmpfs, not the SD card).
+RUN_DIR=/dev/shm/moode-applemusic
+is_hidden() { [ -e "$RUN_DIR/hidden" ]; }
+
+# "‹ moOde" hides the Apple Music window instead of closing it: music keeps
+# playing and reopening is instant. There is no window manager, so the
+# windows are unmapped and mapped again with xdotool.
+xdo() { runuser -u "$display_user" -- env DISPLAY=:0 xdotool "$@"; }
+app_windows() {
+    local pid
+    pid=$(systemctl show -p MainPID --value "$UNIT" 2>/dev/null)
+    [ -n "$pid" ] && [ "$pid" -gt 0 ] || return 0
+    xdo search --onlyvisible --pid "$pid" 2>/dev/null || true
+}
+cmd_hide() {
+    if ! is_running; then echo stopped; return 0; fi
+    local ids id
+    install -d -m 1777 "$RUN_DIR"
+    ids=$(app_windows)
+    [ -n "$ids" ] && printf '%s\n' "$ids" > "$RUN_DIR/windows"
+    for id in $ids; do xdo windowunmap "$id" >/dev/null 2>&1 || true; done
+    touch "$RUN_DIR/hidden"
+    echo hidden
+}
+cmd_show() {
+    if ! is_running; then echo stopped; return 1; fi
+    local id
+    if [ -r "$RUN_DIR/windows" ]; then
+        for id in $(cat "$RUN_DIR/windows"); do
+            xdo windowmap "$id" >/dev/null 2>&1 || true
+            xdo windowraise "$id" >/dev/null 2>&1 || true
+        done
+    fi
+    rm -f "$RUN_DIR/hidden"
+    echo running
+}
 
 # Reuse window size and scale of moOde's own kiosk browser, so Apple Music
 # covers exactly the same area.
@@ -73,17 +113,37 @@ restore_moode_volume() {
         systemctl restart mpd2cdspvolume >/dev/null 2>&1 || true
     fi
 }
-after_close() { thaw_moode; restore_moode_volume; }
+# After a pause Chromium keeps the audio device open for ~15 s, so MPD cannot
+# play yet. Restarting Chromium's audio process (it is restarted on demand)
+# frees the device within a second.
+release_audio() {
+    is_running || return 0
+    local cg pid i
+    cg=/sys/fs/cgroup$(systemctl show -p ControlGroup --value "$UNIT" 2>/dev/null)
+    [ -r "$cg/cgroup.procs" ] || return 0
+    for pid in $(cat "$cg/cgroup.procs"); do
+        grep -qa 'audio.mojom.AudioService' "/proc/$pid/cmdline" 2>/dev/null && kill "$pid" 2>/dev/null
+    done
+    for i in $(seq 1 30); do
+        grep -qs RUNNING /proc/asound/card*/pcm*p/sub*/status || break
+        sleep 0.1
+    done
+    echo released
+}
+
+after_close() { thaw_moode; rm -rf "$RUN_DIR"; restore_moode_volume; }
 
 cmd_open() {
     local debug=no
     [ "${1:-}" = "--debug" ] && debug=yes
 
     if is_running; then
-        echo "running"
+        cmd_show
         return 0
     fi
     systemctl reset-failed "$UNIT" >/dev/null 2>&1 || true
+    rm -rf "$RUN_DIR"
+    install -d -m 1777 "$RUN_DIR"
 
     if [ "$APPLEMUSIC_STOP_MPD" = yes ]; then
         mpc -q stop >/dev/null 2>&1 || true
@@ -133,6 +193,11 @@ cmd_open() {
         --force-device-scale-factor="$scale"
         --alsa-output-device="$APPLEMUSIC_ALSA_DEVICE"
         --autoplay-policy=no-user-gesture-required
+        # Keep the page's timers running while its window is hidden, so the
+        # moOde controls keep working.
+        --disable-background-timer-throttling
+        --disable-renderer-backgrounding
+        --disable-backgrounding-occluded-windows
         --force-prefers-reduced-motion
         --load-extension="$ext_copy"
         --enable-features=OverlayScrollbar
@@ -144,6 +209,13 @@ cmd_open() {
         --disable-session-crashed-bubble
         --password-store=basic
     )
+    # Light or dark Apple Music, like the moOde theme (light text = dark theme).
+    local scheme="$APPLEMUSIC_COLOR_SCHEME" tx
+    if [ "$scheme" = auto ]; then
+        tx=$(moodeutl -q "SELECT tx_color FROM cfg_theme WHERE theme_name=(SELECT value FROM cfg_system WHERE param='themename')" 2>/dev/null)
+        case "$tx" in [89a-fA-F]*) scheme=dark ;; *) scheme=light ;; esac
+    fi
+    [ "$scheme" = dark ] && args+=(--force-dark-mode)
     [ "$debug" = yes ] && args+=(--remote-debugging-port=9222)
     # shellcheck disable=SC2206
     [ -n "$APPLEMUSIC_EXTRA_FLAGS" ] && args+=($APPLEMUSIC_EXTRA_FLAGS)
@@ -176,9 +248,12 @@ cmd_close() {
 case "${1:-}" in
     open)   shift; cmd_open "$@" ;;
     close)  cmd_close ;;
-    toggle) if is_running; then cmd_close; else cmd_open; fi ;;
-    status) if is_running; then echo running; else echo stopped; fi ;;
+    hide)   cmd_hide ;;
+    show)   cmd_show ;;
+    toggle) if ! is_running; then cmd_open; elif is_hidden; then cmd_show; else cmd_hide; fi ;;
+    status) if ! is_running; then echo stopped; elif is_hidden; then echo hidden; else echo running; fi ;;
     thaw-moode) thaw_moode ;;
     after-close) after_close ;;
-    *) echo "Usage: sudo moode-applemusic open [--debug] | close | toggle | status" >&2; exit 2 ;;
+    release-audio) release_audio ;;
+    *) echo "Usage: sudo moode-applemusic open [--debug] | hide | show | close | toggle | status" >&2; exit 2 ;;
 esac

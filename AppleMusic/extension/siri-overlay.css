@@ -1,0 +1,213 @@
+/* SiriRemote on-screen feedback inside Apple Music. Same look as the overlay of
+   SiriRemote/moode-navigation/siri-remote-navigation.js (copied from there). */
+#siri-browser-overlay {
+    position: fixed;
+    z-index: 2147483647;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: none;
+}
+#siri-browser-overlay.siri-overlay-visible {
+    opacity: 1;
+    visibility: visible;
+}
+#siri-browser-overlay .siri-overlay-glass {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,.97);
+    text-align: center;
+    font-family: Lato, sans-serif;
+    border: 1px solid rgba(255,255,255,.32);
+    box-shadow: inset 5px 8px 10px rgba(255,255,255,.46),
+                inset -8px -14px 22px rgba(0,0,0,.24),
+                0 24px 54px rgba(0,0,0,.42),
+                0 6px 15px rgba(0,0,0,.18);
+    -webkit-backdrop-filter: blur(1px) saturate(155%) contrast(104%);
+    backdrop-filter: blur(1px) saturate(155%) contrast(104%);
+}
+#siri-browser-overlay .siri-overlay-lens {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: 50%;
+    background-repeat: no-repeat;
+    transform: scale(1.060);
+    transform-origin: center;
+    filter: saturate(1.13) contrast(1.055) brightness(1.025);
+    opacity: 1;
+}
+#siri-browser-overlay .siri-overlay-lens::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+}
+#siri-browser-overlay .siri-overlay-glass,
+#siri-browser-overlay .siri-overlay-lens::before {
+    background-color: rgba(16,19,24,.90);
+    background-image:
+        radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18));
+}
+#siri-browser-overlay .siri-overlay-lens::after {
+    content: '';
+    position: absolute;
+    left: 15%;
+    right: 15%;
+    bottom: 2.5%;
+    height: 14%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(255,255,255,.17), transparent 70%);
+    filter: blur(8px);
+}
+#siri-browser-overlay .siri-overlay-glass::before {
+    content: none;
+}
+#siri-browser-overlay .siri-overlay-glass::after {
+    content: '';
+    position: absolute;
+    z-index: 2;
+    left: 16%;
+    top: 7%;
+    width: 46%;
+    height: 14%;
+    border-radius: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,.52), rgba(255,255,255,.06) 58%, transparent);
+    filter: blur(3px);
+    transform: rotate(-12deg);
+}
+#siri-browser-overlay .siri-overlay-content {
+    position: relative;
+    z-index: 3;
+    width: 78%;
+    height: 78%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .04em;
+    text-shadow:
+        -1px -1px 2px rgba(0,0,0,.92),
+         1px -1px 2px rgba(0,0,0,.92),
+        -1px  1px 2px rgba(0,0,0,.92),
+         1px  1px 2px rgba(0,0,0,.92),
+         0 2px 7px rgba(0,0,0,.78);
+    filter: drop-shadow(0 2px 9px rgba(0,0,0,.50));
+}
+#siri-browser-overlay .siri-overlay-label {
+    font-size: clamp(1.8rem, 7.6vw, 4rem);
+    line-height: 1.04;
+    font-weight: 700;
+}
+#siri-browser-overlay .siri-overlay-value {
+    font-size: clamp(3.6rem, 16vw, 7.8rem);
+    line-height: .98;
+    font-weight: 800;
+}
+#siri-browser-overlay .siri-overlay-renderer {
+    max-width: 100%;
+    font-size: clamp(2rem, 8.5vw, 4.2rem);
+    line-height: 1.02;
+    font-weight: 800;
+}
+#siri-browser-overlay .siri-glyph {
+    position: relative;
+    width: 58%;
+    height: 58%;
+}
+#siri-browser-overlay .siri-play::before,
+#siri-browser-overlay .siri-next .triangle,
+#siri-browser-overlay .siri-previous .triangle {
+    content: '';
+    position: absolute;
+    top: 16%;
+    height: 68%;
+    background: currentColor;
+}
+#siri-browser-overlay .siri-play::before {
+    left: 25%;
+    width: 56%;
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+#siri-browser-overlay .siri-pause::before,
+#siri-browser-overlay .siri-pause::after {
+    content: '';
+    position: absolute;
+    top: 15%;
+    width: 21%;
+    height: 70%;
+    border-radius: .35rem;
+    background: currentColor;
+}
+#siri-browser-overlay .siri-pause::before { left: 22%; }
+#siri-browser-overlay .siri-pause::after { right: 22%; }
+#siri-browser-overlay .siri-next .triangle {
+    width: 36%;
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+#siri-browser-overlay .siri-next .triangle.one { left: 8%; }
+#siri-browser-overlay .siri-next .triangle.two { left: 38%; }
+#siri-browser-overlay .siri-next .bar,
+#siri-browser-overlay .siri-previous .bar {
+    position: absolute;
+    top: 16%;
+    width: 9%;
+    height: 68%;
+    border-radius: .2rem;
+    background: currentColor;
+}
+#siri-browser-overlay .siri-next .bar { right: 8%; }
+#siri-browser-overlay .siri-previous .triangle {
+    width: 36%;
+    clip-path: polygon(100% 0, 0 50%, 100% 100%);
+}
+#siri-browser-overlay .siri-previous .triangle.one { right: 8%; }
+#siri-browser-overlay .siri-previous .triangle.two { right: 38%; }
+#siri-browser-overlay .siri-previous .bar { left: 8%; }
+#siri-browser-overlay .siri-battery {
+    position: relative;
+    width: 68%;
+    height: 31%;
+    border: clamp(5px, 1.4vw, 10px) solid currentColor;
+    border-radius: 1.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(2.5rem, 11vw, 5.4rem);
+    font-weight: 800;
+}
+#siri-browser-overlay .siri-battery::after {
+    content: '';
+    position: absolute;
+    right: -8%;
+    width: 5.5%;
+    height: 42%;
+    border-radius: 0 .45rem .45rem 0;
+    background: currentColor;
+}
+#siri-browser-overlay .siri-power {
+    position: relative;
+    width: 76%;
+    height: 76%;
+    display: grid;
+    place-items: center;
+}
+#siri-browser-overlay .siri-power svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+#siri-browser-overlay .siri-power span {
+    position: relative;
+    top: 5%;
+    font-size: clamp(4.2rem, 18vw, 8.4rem);
+    line-height: 1;
+    font-weight: 800;
+}

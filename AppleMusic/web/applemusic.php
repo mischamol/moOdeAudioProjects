@@ -1,10 +1,14 @@
 <?php
 /*
  * Apple Music bridge for moOde (AppleMusic project).
- * POST applemusic.php?cmd=open|close|toggle   open/close Apple Music on the local display
- * GET  applemusic.php?cmd=status              running|stopped
+ * POST applemusic.php?cmd=open|close|toggle|hide|show   Apple Music on the local display
+ * GET  applemusic.php?cmd=status              running|hidden|stopped
  * GET  applemusic.php?cmd=volume              CamillaDSP volume for the Apple Music slider
  * POST applemusic.php?cmd=volume&level=0..100 set CamillaDSP volume directly
+ * GET  applemusic.php?cmd=state               now playing, for the moOde UI
+ * POST applemusic.php?cmd=control&action=play|pause|toggle|next|prev
+ * POST applemusic.php?cmd=sync                from the Apple Music extension (JSON body):
+ *                                             stores now playing, returns commands + volume
  */
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
@@ -118,14 +122,263 @@ function volume_state(): array {
     ];
 }
 
+// Runtime state shared with the launcher (tmpfs: written every second).
+const RUN_DIR = '/dev/shm/moode-applemusic';
+const STATE_FILE = RUN_DIR . '/state.json';
+const COMMANDS_FILE = RUN_DIR . '/commands';
+const STATE_MAX_AGE = 8;  // seconds without sync = Apple Music not running
+
+function read_state(): ?array {
+    $s = @json_decode((string)@file_get_contents(STATE_FILE), true);
+    return is_array($s) ? $s : null;
+}
+
+function write_state(array $s): void {
+    if (!is_dir(RUN_DIR)) { return; }  // only while the launcher runs Apple Music
+    $tmp = STATE_FILE . '.' . getmypid();
+    if (@file_put_contents($tmp, json_encode($s)) !== false) { @rename($tmp, STATE_FILE); }
+}
+
+// Commands from the moOde UI wait here until the extension's next sync.
+function push_command(string $action): bool {
+    if (!is_dir(RUN_DIR)) { return false; }
+    return @file_put_contents(COMMANDS_FILE, $action . "\n", FILE_APPEND | LOCK_EX) !== false;
+}
+
+function take_commands(): array {
+    $fh = @fopen(COMMANDS_FILE, 'c+');
+    if (!$fh) { return []; }
+    flock($fh, LOCK_EX);
+    $data = stream_get_contents($fh);
+    ftruncate($fh, 0);
+    flock($fh, LOCK_UN);
+    fclose($fh);
+    return array_values(array_filter(array_map('trim', explode("\n", (string)$data))));
+}
+
+// Send one command to MPD; returns its "key: value" reply lines.
+function mpd_command(string $command): array {
+    $s = @stream_socket_client('tcp://127.0.0.1:6600', $errno, $errstr, 0.3);
+    if (!$s) { return []; }
+    stream_set_timeout($s, 0, 500000);
+    fgets($s);  // greeting
+    fwrite($s, $command . "\nclose\n");
+    $out = [];
+    while (($line = fgets($s)) !== false) {
+        if (strncmp($line, 'OK', 2) === 0 || strncmp($line, 'ACK', 3) === 0) { break; }
+        $p = strpos($line, ': ');
+        if ($p !== false) { $out[substr($line, 0, $p)] = trim(substr($line, $p + 2)); }
+    }
+    fclose($s);
+    return $out;
+}
+
+function mpd_state(): string {
+    return mpd_command('status')['state'] ?? 'unknown';
+}
+
+// Output format of the audio device, in moOde's notation ("PCM 24/44.1 kHz, 2ch").
+function output_format(): string {
+    foreach (glob('/proc/asound/card*/pcm*p/sub*/hw_params') ?: [] as $f) {
+        $t = @file_get_contents($f);
+        if (!$t || strpos($t, 'closed') === 0) { continue; }
+        preg_match('/^format:\s*\S*?(\d+)/m', $t, $fm);
+        preg_match('/^rate:\s*(\d+)/m', $t, $rm);
+        preg_match('/^channels:\s*(\d+)/m', $t, $cm);
+        if ($rm) {
+            return 'PCM ' . ($fm[1] ?? '?') . '/' . rtrim(rtrim(number_format($rm[1] / 1000, 1, '.', ''), '0'), '.') .
+                ' kHz, ' . ($cm[1] ?? 2) . 'ch';
+        }
+    }
+    return 'Not playing';
+}
+
+function app_state(): array {
+    $s = read_state();
+    $fresh = $s && (microtime(true) - ($s['time'] ?? 0)) < STATE_MAX_AGE;
+    if (!$fresh) { return ['app' => 'stopped', 'playing' => false, 'item' => null]; }
+    $item = $s['item'] ?? null;
+    if ($item && !empty($s['playing'])) {
+        // Position as of now, not as of the last sync.
+        $item['position'] = min((float)($item['duration'] ?? 0), (float)($item['position'] ?? 0) + microtime(true) - $s['time']);
+    }
+    return [
+        'app' => file_exists(RUN_DIR . '/hidden') ? 'hidden' : 'visible',
+        'playing' => !empty($s['playing']),
+        'item' => $item,
+        'oformat' => !empty($s['playing']) ? output_format() : 'Not playing',
+    ];
+}
+
+// Restart Chromium's audio process (frees a stuck or failed audio output),
+// close Apple Music's resulting error message and play on.
+function restart_apple_music_audio(array &$state, array &$commands): void {
+    exec('sudo -n /usr/local/bin/moode-applemusic release-audio >/dev/null 2>&1');
+    $state['released_at'] = microtime(true);
+    $state['stalled_since'] = null;
+    $commands[] = 'recover-audio';
+}
+
+function clean_item($item): ?array {
+    if (!is_array($item)) { return null; }
+    // moOde's PHP has no mbstring: cut at 300 UTF-8 characters with a regex.
+    $str = function ($v) { return preg_match('/^.{0,300}/su', trim((string)$v), $m) ? $m[0] : ''; };
+    $art = (string)($item['artwork'] ?? '');
+    return [
+        'id' => $str($item['id'] ?? ''),
+        'title' => $str($item['title'] ?? ''),
+        'artist' => $str($item['artist'] ?? ''),
+        'album' => $str($item['album'] ?? ''),
+        // Only Apple's own artwork servers.
+        'artwork' => preg_match('#^https://[a-z0-9.-]+\.mzstatic\.com/#i', $art) ? $art : '',
+        'duration' => max(0, (float)($item['duration'] ?? 0)),
+        'position' => max(0, (float)($item['position'] ?? 0)),
+    ];
+}
+
+// moOde's current theme, for Apple Music's colours.
+function theme_state(): array {
+    $c = moode_cfg(['themename', 'accent_color', 'cover_backdrop', 'cover_blur', 'cover_scale', 'alphablend']);
+    $name = $c['themename'] ?? 'Default';
+    $db = new SQLite3(MOODE_DB, SQLITE3_OPEN_READONLY);
+    $db->busyTimeout(500);
+    $st = $db->prepare('SELECT tx_color, bg_color, mbg_color FROM cfg_theme WHERE theme_name = :n');
+    $st->bindValue(':n', $name, SQLITE3_TEXT);
+    $row = $st->execute()->fetchArray(SQLITE3_ASSOC) ?: ['tx_color' => 'ddd', 'bg_color' => '32,32,32', 'mbg_color' => '50,50,50,0.75'];
+    $db->close();
+    $rgb = function ($v, $n) {
+        $parts = array_map('trim', explode(',', (string)$v));
+        $parts = array_slice(array_map('floatval', $parts), 0, $n);
+        return count($parts) === $n ? implode(',', $parts) : null;
+    };
+    // Accent colour names are defined in moOde's JavaScript only.
+    $accent = '#d35400';
+    $js = @file_get_contents('/var/www/js/lib.min.js');
+    if ($js && preg_match('/case"' . preg_quote($c['accent_color'] ?? '', '/') . '":t="(#[0-9a-fA-F]{6})"/', $js, $m)) {
+        $accent = $m[1];
+    }
+    $tx = preg_match('/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/', $row['tx_color']) ? '#' . $row['tx_color'] : '#ddd';
+    $light = hexdec(substr(ltrim($tx, '#'), 0, 1)) >= 8;  // light text = dark theme
+    return [
+        'name' => $name,
+        'dark' => $light,
+        'tx' => $tx,
+        'bg' => $rgb($row['bg_color'], 3) ?? '32,32,32',
+        'mbg' => $rgb($row['mbg_color'], 4) ?? '50,50,50,0.75',
+        'accent' => $accent,
+        'backdrop' => ($c['cover_backdrop'] ?? 'No') === 'Yes',
+        'blur' => preg_match('/^\d+(\.\d+)?px$/', $c['cover_blur'] ?? '') ? $c['cover_blur'] : '5px',
+        'scale' => is_numeric($c['cover_scale'] ?? '') ? (float)$c['cover_scale'] : 1.25,
+        'alpha' => is_numeric($c['alphablend'] ?? '') ? (float)$c['alphablend'] : 0.75,
+    ];
+}
+
 $cmd = $_GET['cmd'] ?? '';
-$allowed = ['open', 'close', 'toggle', 'status', 'volume'];
+$allowed = ['open', 'close', 'toggle', 'status', 'volume', 'hide', 'show', 'state', 'control', 'sync', 'theme'];
 if (!in_array($cmd, $allowed, true)) {
     http_response_code(400);
     echo json_encode(['error' => 'unknown command']);
     exit;
 }
 $post = $_SERVER['REQUEST_METHOD'] === 'POST';
+
+if ($cmd === 'state') {
+    echo json_encode(app_state());
+    exit;
+}
+
+if ($cmd === 'theme') {
+    echo json_encode(theme_state());
+    exit;
+}
+
+if ($cmd === 'sync') {
+    if (!$post) { http_response_code(405); echo json_encode(['error' => 'use POST']); exit; }
+    $in = json_decode((string)file_get_contents('php://input'), true);
+    $in = is_array($in) ? $in : [];
+    $prev = read_state();
+    $playing = !empty($in['playing']);
+    $state = ['time' => microtime(true), 'ready' => !empty($in['ready']), 'playing' => $playing, 'item' => clean_item($in['item'] ?? null)];
+    $commands = take_commands();
+    // Apple Music and MPD share the output device: whoever starts last wins.
+    $mpd = mpd_command('status');
+    $mpdState = $mpd['state'] ?? 'unknown';
+    // MPD pauses itself with this error when play is pressed in moOde while
+    // Apple Music holds the device. Its errors are cleared whenever Apple Music
+    // starts, so an error here is always a play request made after that.
+    $mpdWantsDevice = $mpdState === 'play' ||
+        ($mpdState === 'pause' && strpos($mpd['error'] ?? '', 'open audio output') !== false);
+    $state['released_at'] = $prev['released_at'] ?? 0;
+    $position = (float)($state['item']['position'] ?? 0);
+    $sameItem = ($state['item']['id'] ?? '') !== '' && ($state['item']['id'] ?? '') === ($prev['item']['id'] ?? '');
+    // Playing without the position moving: Chromium's audio output failed.
+    $state['stalled_since'] = ($playing && !empty($prev['playing']) && $sameItem &&
+        abs($position - (float)($prev['item']['position'] ?? -1)) < 0.5)
+        ? ($prev['stalled_since'] ?? microtime(true)) : null;
+    if ($playing) {
+        if (empty($prev['playing'])) {
+            // Apple Music just started: free the device and forget old errors.
+            if ($mpdState !== 'stop') {
+                exec('mpc -q stop >/dev/null 2>&1');
+                // Chromium opened the device while MPD still held it; its
+                // CamillaDSP failed with "device busy". Restart Chromium's
+                // audio and play again now that the device is free.
+                if ($mpdState === 'play') { restart_apple_music_audio($state, $commands); }
+            }
+            mpd_command('clearerror');
+        } elseif ($state['stalled_since'] !== null && microtime(true) - $state['stalled_since'] > 4 &&
+            microtime(true) - $state['released_at'] > 10) {
+            restart_apple_music_audio($state, $commands);
+        } elseif ($mpdWantsDevice) {
+            $commands[] = 'pause';
+            $state['resume_mpd'] = true;
+        }
+        if (!empty($prev['resume_mpd'])) { $state['resume_mpd'] = true; }  // pause not done yet
+    } elseif ((!empty($prev['resume_mpd']) || $mpdWantsDevice) && $mpdState !== 'play' &&
+        microtime(true) - $state['released_at'] > 10) {
+        // Apple Music is paused but Chromium still holds the device: free it
+        // and let MPD play (at most every 10 s, in case MPD fails otherwise).
+        exec('sudo -n /usr/local/bin/moode-applemusic release-audio >/dev/null 2>&1');
+        exec('mpc -q play >/dev/null 2>&1');
+        $state['released_at'] = microtime(true);
+        push_command('dismiss-error');  // Apple Music reports the lost audio process
+    }
+    write_state($state);
+    // Short long-poll: without commands, wait up to 0.9 s for one, so buttons
+    // in moOde or on a remote reach Apple Music within ~50 ms. The extension
+    // sends its next sync as soon as this one returns.
+    if (!$commands && !empty($_GET['wait'])) {
+        $until = microtime(true) + 0.9;
+        while (microtime(true) < $until) {
+            usleep(40000);
+            clearstatcache(true, COMMANDS_FILE);
+            if (@filesize(COMMANDS_FILE) > 0) { $commands = take_commands(); break; }
+        }
+    }
+    echo json_encode(['commands' => $commands, 'volume' => volume_state()]);
+    exit;
+}
+
+if ($cmd === 'control') {
+    if (!$post) { http_response_code(405); echo json_encode(['error' => 'use POST']); exit; }
+    $action = $_GET['action'] ?? '';
+    if (!in_array($action, ['play', 'pause', 'toggle', 'next', 'prev'], true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'unknown action']);
+        exit;
+    }
+    $s = read_state();
+    // Resulting state, in the format of moOde's toggle_play_pause (remote OSD).
+    $result = ['play' => 'play', 'pause' => 'pause', 'toggle' => empty($s['playing']) ? 'play' : 'pause'][$action]
+        ?? (empty($s['playing']) ? 'pause' : 'play');
+    if ($action === 'play' || $action === 'toggle') {
+        // Free the output device before Apple Music plays again.
+        // A paused MPD keeps the device open too.
+        if (($action === 'play' || empty($s['playing'])) && mpd_state() !== 'stop') { exec('mpc -q stop >/dev/null 2>&1'); }
+    }
+    echo json_encode(['ok' => push_command($action), 'state' => $result]);
+    exit;
+}
 
 if ($cmd === 'volume') {
     if ($post) {
@@ -160,6 +413,6 @@ $last = trim((string)end($out));
 echo json_encode([
     'cmd' => $cmd,
     'ok' => $rc === 0,
-    'state' => in_array($last, ['running', 'started'], true) ? 'running' : ($last === 'stopped' ? 'stopped' : $last),
+    'state' => in_array($last, ['running', 'started'], true) ? 'running' : $last,
     'output' => implode("\n", $out),
 ]);

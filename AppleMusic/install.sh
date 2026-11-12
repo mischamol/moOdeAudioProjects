@@ -27,11 +27,18 @@ if ! dpkg-query -W -f='${Status}' libwidevinecdm0 2>/dev/null | grep -q "install
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libwidevinecdm0
     touch "$state_dir/installed-widevine"
 fi
+# xdotool hides/shows the Apple Music window (there is no window manager).
+if ! command -v xdotool >/dev/null 2>&1; then
+    echo "Installing xdotool..."
+    apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xdotool
+    touch "$state_dir/installed-xdotool"
+fi
 
 # 2. Launcher, Chromium extension and configuration.
 install -o root -g root -m 0755 "$script_dir/moode-applemusic" "$launcher"
 mkdir -p "$extension_dir"
-for f in manifest.json rules.json background.js content.js content.css nowebgl.js volume.js; do
+for f in manifest.json rules.json background.js content.js content.css nowebgl.js volume.js nowplaying.js idle.js theme.js siri-overlay.js siri-overlay.css; do
     install -o root -g root -m 0644 "$script_dir/extension/$f" "$extension_dir/$f"
 done
 if [ ! -f "$config" ]; then
@@ -48,6 +55,8 @@ APPLEMUSIC_STOP_MPD=yes
 APPLEMUSIC_FREEZE_MOODE=no
 # Extra Chromium flags, e.g. --enable-low-end-device-mode
 APPLEMUSIC_EXTRA_FLAGS=
+# auto = light/dark like the moOde theme; or dark / light
+APPLEMUSIC_COLOR_SCHEME=auto
 CONF
 fi
 

@@ -41,6 +41,14 @@ svg {
    (class set by content.js; a :has() rule here slowed every page change). */
 #moode-return.moode-hidden { display: none; }
 
+/* While the full-screen player covers everything, the browser does not need
+   to restyle the page underneath (class set by content.js). Opening the
+   player went from ~800 ms to ~300 ms on the Pi. */
+html.moode-player-open #scrollable-page,
+html.moode-player-open .app-container > .header {
+    content-visibility: hidden;
+}
+
 /* No animated backdrop or scrolling title in the full-screen player. */
 .dynamic-backdrop canvas { display: none !important; }
 .lcd-meta-line__marquee-scroller {

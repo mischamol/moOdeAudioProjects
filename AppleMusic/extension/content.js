@@ -13,7 +13,10 @@
         btn.addEventListener('click', function (ev) {
             ev.preventDefault();
             ev.stopPropagation();
+            // Apple Music is hidden, not closed: the button works again
+            // when it is shown next time.
             btn.disabled = true;
+            setTimeout(function () { btn.disabled = false; }, 2000);
             chrome.runtime.sendMessage({ type: 'moode-close' });
         });
         document.documentElement.appendChild(btn);
@@ -24,31 +27,116 @@
         addButton();
     }
 
-    // Hide "‹ moOde" while the full-screen player is open. A cheap timer is
-    // used instead of observing the whole document.
-    setInterval(function () {
+    // Full-screen player state. "moode-player-open" on <html> lets the
+    // browser skip the page underneath (content.css); "‹ moOde" is hidden
+    // while the player is open. A cheap timer is used instead of observing
+    // the whole document; clicks on the open/close buttons act at once.
+    var root = document.documentElement;
+    var openedAt = 0;
+    function setPlayerOpen(open) {
+        root.classList.toggle('moode-player-open', open);
         var btn = document.getElementById('moode-return');
-        if (btn) { btn.classList.toggle('moode-hidden', !!document.querySelector('.sliding-modal.is-open')); }
+        if (btn) { btn.classList.toggle('moode-hidden', open); }
+    }
+    function waitForClose() {
+        if (document.querySelector('.sliding-modal')) { requestAnimationFrame(waitForClose); return; }
+        setPlayerOpen(false);
+    }
+    document.addEventListener('click', function (ev) {
+        var t = ev.target;
+        if (!t || !t.closest) { return; }
+        if (t.closest('.mini-player__metadata-button')) {
+            openedAt = Date.now();
+            setPlayerOpen(true);
+        } else if (t.closest('.sliding-modal-collapse')) {
+            openedAt = 0;
+            requestAnimationFrame(waitForClose);
+        }
+    }, true);
+    // Time-synced lyrics blur every line that is not sung (filter: blur(2px)
+    // with a transition). On the Pi that took ~110 % CPU plus ~70 % in the GPU
+    // process and made the lyrics stutter; without the blur: 60 fps, ~35 %.
+    // The lyrics live in nested shadow DOMs, out of reach of content.css.
+    var LYRICS_CSS = 'amp-lyrics-display-synced-line, amp-lyrics-display-instrumental-line ' +
+        '{ filter: none !important; transition: none !important; }';
+    function lightLyrics() {
+        var lyrics = document.querySelector('.sliding-modal amp-lyrics');
+        var synced = lyrics && lyrics.shadowRoot &&
+            lyrics.shadowRoot.querySelector('amp-lyrics-display-time-synced');
+        var root = synced && synced.shadowRoot;
+        if (root && !root.getElementById('moode-light-lyrics')) {
+            var style = document.createElement('style');
+            style.id = 'moode-light-lyrics';
+            style.textContent = LYRICS_CSS;
+            root.appendChild(style);
+        }
+    }
+
+    setInterval(function () {
+        var open = !!document.querySelector('.sliding-modal.is-open');
+        if (open) { lightLyrics(); }
+        // Right after a click the player may still be on its way.
+        if (!open && Date.now() - openedAt < 1500) { return; }
+        if (open !== root.classList.contains('moode-player-open')) { setPlayerOpen(open); }
     }, 400);
 
-    // Volume bridge: relay between the page (volume.js) and the extension.
+    // Relay between the page (nowplaying.js, volume.js) and moOde: the page
+    // reports what plays once a second; moOde answers with its volume and
+    // any buttons pressed in the moOde interface.
     function pushState(state) {
         if (state && typeof state.level === 'number') {
             window.postMessage({ source: 'moode-am-ext', type: 'volume-state',
                 bridge: !!state.bridge, level: state.level }, '*');
         }
     }
-    function pollVolume() {
-        if (document.hidden) { return; }
-        chrome.runtime.sendMessage({ type: 'moode-get-volume' }, pushState);
+    // When MPD takes over, moOde restarts Chromium's audio process to free
+    // the device; Apple Music then shows "Er is een fout opgetreden". Close it.
+    function dismissError() {
+        [500, 1500, 3000, 6000].forEach(function (ms) {
+            setTimeout(function () {
+                var ok = document.querySelector('[data-testid="error-modal"] button');
+                if (ok) { ok.click(); }
+            }, ms);
+        });
+    }
+    var syncing = false;
+    var pending = null;
+    function sync(state) {
+        if (syncing) { pending = state; return; }
+        syncing = true;
+        chrome.runtime.sendMessage({ type: 'moode-sync', state: state }, function (res) {
+            syncing = false;
+            if (res) {
+                pushState(res.volume);
+                (res.commands || []).forEach(function (action) {
+                    if (action === 'dismiss-error') { dismissError(); return; }
+                    if (action === 'recover-audio') {
+                        // Chromium's audio was restarted: once Apple Music has
+                        // noticed (error message), play on. play is a no-op
+                        // when it already plays.
+                        dismissError();
+                        [1500, 3500].forEach(function (ms) {
+                            setTimeout(function () {
+                                window.postMessage({ source: 'moode-am-ext', type: 'command', action: 'play' }, '*');
+                            }, ms);
+                        });
+                        return;
+                    }
+                    window.postMessage({ source: 'moode-am-ext', type: 'command', action: action }, '*');
+                });
+            }
+            if (pending) { var next = pending; pending = null; sync(next); }
+        });
     }
     window.addEventListener('message', function (ev) {
         var d = ev.data;
-        if (ev.source !== window || !d || d.source !== 'moode-am-page' || d.type !== 'set-volume') { return; }
-        chrome.runtime.sendMessage({ type: 'moode-set-volume', level: d.level }, pushState);
+        if (ev.source !== window || !d || d.source !== 'moode-am-page') { return; }
+        if (d.type === 'state') {
+            sync(d.state);
+        } else if (d.type === 'set-volume') {
+            chrome.runtime.sendMessage({ type: 'moode-set-volume', level: d.level }, pushState);
+        }
     });
-    setInterval(pollVolume, 2000);
-    setTimeout(pollVolume, 1500);
 
     // Swipe down closes the full-screen player, as in the iOS/Android app.
     // Apple Music only enables this gesture on phones, not on the Pi.

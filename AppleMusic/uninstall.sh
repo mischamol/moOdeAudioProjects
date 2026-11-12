@@ -39,6 +39,11 @@ if [ -f "$state_dir/installed-widevine" ]; then
     echo "Removing Widevine (installed by this project)..."
     DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq libwidevinecdm0 || true
 fi
+if [ -f "$state_dir/installed-xdotool" ]; then
+    echo "Removing xdotool (installed by this project)..."
+    DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq xdotool || true
+fi
+rm -rf /dev/shm/moode-applemusic
 
 display_user=$(systemctl show -p User --value localdisplay.service 2>/dev/null || true)
 profile=""
