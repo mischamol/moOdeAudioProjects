@@ -308,6 +308,9 @@
     function positionOverlay() {
         const overlay = ensureOverlay();
         const selectors = [
+            // moOde's renderer screen (AirPlay, Spotify, Apple Music) first:
+            // it covers the Playback cover while a renderer is active.
+            '#inpsrc-cover img',
             '#coverart-url img', '#coverart-url', '#playback-cover img',
             '#playback-cover', '#coverart', '.coverart img',
         ];

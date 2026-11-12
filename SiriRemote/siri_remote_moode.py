@@ -703,6 +703,98 @@ class RendererGuard:
         return True
 
 
+class AppleMusicBridge:
+    """Send ordinary remote actions to Apple Music while it is the source.
+
+    The AppleMusic project (moode-applemusic) shares its state in /dev/shm.
+    While Apple Music is on screen, or has something queued and MPD is not
+    playing, Play/Pause
+    and Previous/Next control Apple Music instead of MPD, and Menu/Back
+    switches between Apple Music and moOde's renderer screen. Without that
+    project the state file does not exist and nothing changes.
+    """
+
+    STATE_FILE = "/dev/shm/moode-applemusic/state.json"
+    HIDDEN_FILE = "/dev/shm/moode-applemusic/hidden"
+    MAX_AGE_SECONDS = 8.0
+    ACTIONS = {"toggle_play_pause": "toggle", "previous": "prev", "next": "next",
+               "play": "play", "pause": "pause"}
+
+    def __init__(self, command_url: str, timeout: float) -> None:
+        self.enabled = env("SIRI_APPLEMUSIC", "yes").lower() in ("1", "yes", "true", "on", "auto")
+        self.url = urllib.parse.urljoin(command_url, "../applemusic.php")
+        self.timeout = min(2.0, timeout)
+
+    def _state(self) -> dict | None:
+        if not self.enabled:
+            return None
+        try:
+            with open(self.STATE_FILE, encoding="utf-8") as handle:
+                state = json.load(handle)
+        except (OSError, ValueError):
+            return None
+        if not isinstance(state, dict) or time.time() - float(state.get("time", 0)) > self.MAX_AGE_SECONDS:
+            return None
+        return state
+
+    @staticmethod
+    def _mpd_playing() -> bool:
+        try:
+            with socket.create_connection(("127.0.0.1", 6600), timeout=0.3) as sock:
+                sock.settimeout(0.3)
+                sock.recv(64)
+                sock.sendall(b"status\nclose\n")
+                data = b""
+                while b"\nOK" not in data and b"ACK" not in data:
+                    chunk = sock.recv(4096)
+                    if not chunk:
+                        break
+                    data += chunk
+        except OSError:
+            return False
+        return b"\nstate: play" in b"\n" + data
+
+    def running(self) -> bool:
+        return self._state() is not None
+
+    def visible(self) -> bool:
+        return self.running() and not os.path.exists(self.HIDDEN_FILE)
+
+    def active(self) -> bool:
+        state = self._state()
+        if state is None:
+            return False
+        # On screen, Play means Apple Music, even before a song is queued:
+        # starting MPD unseen underneath would take the audio device.
+        if state.get("playing") or not os.path.exists(self.HIDDEN_FILE):
+            return True
+        return bool(state.get("item")) and not self._mpd_playing()
+
+    def action_for(self, command: str) -> str | None:
+        return self.ACTIONS.get(command.strip().partition(" ")[0])
+
+    def _post(self, query: dict) -> dict | None:
+        request = urllib.request.Request(
+            f"{self.url}?{urllib.parse.urlencode(query)}",
+            data=b"",
+            headers={"User-Agent": "siri-remote-moode/1", "Connection": "close"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                result = json.loads(response.read(4096).decode("utf-8"))
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            LOG.error("Apple Music request %s failed: %s", query, exc)
+            return None
+        return result if isinstance(result, dict) else None
+
+    def control(self, action: str) -> dict | None:
+        return self._post({"cmd": "control", "action": action})
+
+    def window(self, command: str) -> bool:
+        return self._post({"cmd": command}) is not None
+
+
 class MoodeWorker:
     def __init__(
         self,
@@ -717,6 +809,7 @@ class MoodeWorker:
         self.dry_run = dry_run
         self.result_handler = result_handler
         self.renderer_guard = renderer_guard
+        self.apple_music: AppleMusicBridge | None = None
         self.commands: queue.Queue[tuple[str, str] | None] = queue.Queue(maxsize=32)
         self.thread = threading.Thread(target=self._run, name="moode-http", daemon=True)
 
@@ -752,6 +845,17 @@ class MoodeWorker:
             if self.dry_run:
                 LOG.info("DRY RUN: %s -> %s", button_name, command)
                 continue
+            apple_music = self.apple_music
+            action = apple_music.action_for(command) if apple_music is not None else None
+            if action is not None and apple_music.active():
+                result = apple_music.control(action)
+                if result is not None:
+                    LOG.info("%s -> Apple Music %s", button_name, action)
+                    if self.result_handler is not None:
+                        # Same response shape as moOde's toggle_play_pause.
+                        body = json.dumps({"state": result.get("state", "")}).encode("utf-8")
+                        self.result_handler(button_name, command, body)
+                continue
             query = urllib.parse.urlencode({"cmd": command}, quote_via=urllib.parse.quote)
             url = f"{self.base_url}?{query}"
             request = urllib.request.Request(
@@ -778,6 +882,11 @@ class X11ClickWorker:
 
     def __init__(self, renderer_guard: RendererGuard | None = None) -> None:
         self.renderer_guard = renderer_guard
+        # Set by run(): Apple Music routing (see AppleMusicBridge).
+        self.apple_music: AppleMusicBridge | None = None
+        self.moode_worker: MoodeWorker | None = None
+        self.previous_command = env("MOODE_PREVIOUS_CMD", "previous")
+        self.next_command = env("MOODE_NEXT_CMD", "next")
         self.menu_enabled = env("SIRI_MENU_SCREEN_CLICK", "no").lower() in (
             "1", "yes", "true", "on"
         )
@@ -984,6 +1093,10 @@ class X11ClickWorker:
 
     def _ensure_playback(self) -> None:
         """Wait for X11 after boot and put the WebUI in a known Playback state."""
+        if self.apple_music is not None and self.apple_music.visible():
+            # The synchronizing click would land in Apple Music instead.
+            LOG.info("Menu/Back X11: Apple Music is shown; skipping Playback synchronization")
+            return
         deadline = time.monotonic() + self.ready_timeout
         while True:
             try:
@@ -1018,6 +1131,37 @@ class X11ClickWorker:
             y,
         )
 
+    def _apple_music_item(self, item: str) -> bool:
+        """Handle an X11 action for Apple Music; False = normal moOde handling."""
+        apple_music = self.apple_music
+        if apple_music is None or not apple_music.running():
+            return False
+        if item == "menu":
+            # Menu/Back switches between Apple Music and moOde's renderer screen.
+            if apple_music.visible():
+                apple_music.window("hide")
+                LOG.info("Menu/Back -> hide Apple Music")
+                return True
+            if apple_music.active():
+                apple_music.window("show")
+                LOG.info("Menu/Back -> show Apple Music")
+                return True
+            return False
+        if not apple_music.active() and not apple_music.visible():
+            return False
+        # moOde's views are covered by Apple Music or its renderer screen:
+        # touchpad left/right are Previous/Next, other navigation does nothing.
+        action = item.partition(":")[2]
+        if item.startswith("navigation:") and action in ("select-left", "select-right"):
+            if self.moode_worker is not None:
+                if action == "select-left":
+                    self.moode_worker.submit("Touchpad left / Previous", self.previous_command)
+                else:
+                    self.moode_worker.submit("Touchpad right / Next", self.next_command)
+            return True
+        LOG.debug("Ignoring %s while Apple Music is the source", item)
+        return True
+
     def _run(self) -> None:
         if self.menu_enabled:
             self._ensure_playback()
@@ -1026,6 +1170,8 @@ class X11ClickWorker:
             if item is None:
                 return
             try:
+                if item != "library-menu" and self._apple_music_item(item):
+                    continue
                 if item == "menu":
                     if (
                         self.renderer_guard is not None
@@ -2737,6 +2883,10 @@ def run(args: argparse.Namespace) -> int:
         renderer_guard=renderer_guard,
     )
     screen_clicker = X11ClickWorker(renderer_guard)
+    apple_music = AppleMusicBridge(args.moode_url, args.http_timeout)
+    worker.apple_music = apple_music
+    screen_clicker.apple_music = apple_music
+    screen_clicker.moode_worker = worker
     mapper = ButtonMapper(
         worker,
         screen_clicker=screen_clicker if screen_clicker.enabled else None,

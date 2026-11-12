@@ -217,6 +217,28 @@ SIRI_RENDERER_DIRECT_DB=yes
 MOODE_DB_PATH=/var/local/www/db/moode-sqlite3.db
 ```
 
+### Apple Music
+
+With the [AppleMusic](../AppleMusic/readme.md) project installed, the remote
+follows Apple Music while it is the source: it is playing, or it has a song
+paused and MPD is not playing. The daemon reads Apple Music's state from
+`/dev/shm/moode-applemusic/state.json` in its worker threads, never in the
+Bluetooth callback.
+
+- Play/Pause and Previous/Next (touchpad click left/right) control Apple Music
+  through `applemusic.php`; the overlay shows the resulting state as usual.
+- Volume keeps using moOde's `set_volume`, which also moves Apple Music's
+  volume slider.
+- Menu/Back hides Apple Music when it is on screen and shows it again from
+  moOde's renderer screen.
+- Touchpad swipes and the centre click do nothing meanwhile, because moOde's
+  views are covered by Apple Music or its renderer screen.
+- At daemon start, the Playback synchronization click is skipped while Apple
+  Music is on screen.
+
+The Apple Music extension shows this daemon's overlays on top of Apple Music
+as well. Disable the routing with `SIRI_APPLEMUSIC=no`.
+
 ## 5. Download the software from GitHub
 
 Run the following commands directly on the Raspberry Pi:

@@ -547,6 +547,114 @@ class MoodeWorkerTests(unittest.TestCase):
         self.assertEqual(guard.actions, ["Play/Pause"])
 
 
+class FakeAppleMusic:
+    def __init__(self, active, visible=False):
+        self._active = active
+        self._visible = visible
+        self.controls = []
+        self.windows = []
+
+    def action_for(self, command):
+        return remote.AppleMusicBridge.ACTIONS.get(command.partition(" ")[0])
+
+    def running(self):
+        return True
+
+    def active(self):
+        return self._active
+
+    def visible(self):
+        return self._visible
+
+    def control(self, action):
+        self.controls.append(action)
+        return {"ok": True, "state": "pause"}
+
+    def window(self, command):
+        self.windows.append(command)
+        return True
+
+
+class AppleMusicTests(unittest.TestCase):
+    def run_worker(self, apple_music, command, button="Play/Pause"):
+        results = []
+        worker = remote.MoodeWorker(
+            "http://localhost/command/", 1,
+            result_handler=lambda *args: results.append(args),
+            renderer_guard=FakeRendererGuard(True),
+        )
+        worker.apple_music = apple_music
+        with mock.patch.object(remote.urllib.request, "urlopen") as urlopen:
+            worker.start()
+            worker.submit(button, command)
+            worker.stop()
+            worker.thread.join(1)
+        return urlopen, results
+
+    def test_play_pause_controls_apple_music_while_it_is_the_source(self):
+        apple_music = FakeAppleMusic(True)
+        urlopen, results = self.run_worker(apple_music, "toggle_play_pause")
+        urlopen.assert_not_called()
+        self.assertEqual(apple_music.controls, ["toggle"])
+        self.assertEqual(results[0][2], b'{"state": "pause"}')
+
+    def test_volume_stays_with_moode_while_apple_music_plays(self):
+        apple_music = FakeAppleMusic(True)
+        urlopen, _results = self.run_worker(apple_music, "set_volume -up 5", "Volume +")
+        self.assertEqual(apple_music.controls, [])
+        urlopen.assert_called_once()
+
+    def test_play_pause_controls_mpd_when_apple_music_is_not_the_source(self):
+        apple_music = FakeAppleMusic(False)
+        urlopen, _results = self.run_worker(apple_music, "toggle_play_pause")
+        self.assertEqual(apple_music.controls, [])
+        urlopen.assert_called_once()
+
+    def test_bridge_reads_fresh_state_and_ignores_stale_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "state.json")
+            bridge = remote.AppleMusicBridge("http://localhost/command/", 1)
+            self.assertEqual(bridge.url, "http://localhost/applemusic.php")
+            hidden = os.path.join(directory, "hidden")
+            open(hidden, "w").close()
+            with mock.patch.object(remote.AppleMusicBridge, "STATE_FILE", path), \
+                    mock.patch.object(remote.AppleMusicBridge, "HIDDEN_FILE", hidden), \
+                    mock.patch.object(remote.AppleMusicBridge, "_mpd_playing", return_value=False) as mpd:
+                self.assertFalse(bridge.active())
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write('{"time": %f, "playing": false, "item": {"title": "x"}}' % remote.time.time())
+                self.assertTrue(bridge.active())
+                mpd.return_value = True
+                self.assertFalse(bridge.active())        # hidden, paused, MPD plays
+                os.remove(hidden)
+                self.assertTrue(bridge.active())         # on screen: always Apple Music
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write('{"time": %f, "playing": true, "item": null}' % (remote.time.time() - 60))
+                self.assertFalse(bridge.active())
+
+    def test_menu_hides_visible_apple_music_and_touchpad_click_is_next(self):
+        apple_music = FakeAppleMusic(True, visible=True)
+        worker = FakeWorker()
+        with mock.patch.dict(os.environ, {"SIRI_MENU_SCREEN_CLICK": "yes",
+                                          "SIRI_LIBRARY_NAVIGATION": "yes"}, clear=False):
+            clicker = remote.X11ClickWorker(FakeRendererGuard(True))
+        clicker.apple_music = apple_music
+        clicker.moode_worker = worker
+        with mock.patch.object(clicker, "_ensure_playback"), \
+                mock.patch.object(clicker, "_click") as click, \
+                mock.patch.object(clicker, "_emit_navigation_key") as key:
+            clicker.start()
+            clicker.submit()
+            clicker.submit_navigation("select-right")
+            clicker.submit_navigation("down")
+            clicker.stop()
+            clicker.thread.join(1)
+        click.assert_not_called()
+        key.assert_not_called()
+        self.assertEqual(apple_music.windows, ["hide"])
+        self.assertEqual(worker.actions, [("Touchpad right / Next", "next")])
+
+
 class X11ClickWorkerTests(unittest.TestCase):
     def test_active_renderer_prevents_menu_click(self):
         guard = FakeRendererGuard(False)
