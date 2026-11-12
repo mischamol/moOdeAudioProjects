@@ -7,6 +7,12 @@ returns to the moOde interface while the music keeps playing; moOde then shows
 Apple Music on its renderer screen, like AirPlay or Spotify Connect, with
 cover, title and play/pause/next/previous buttons.
 
+<p>
+  <img width="350" alt="moOde Library menu with the Apple Music entry" src="assets/moode-library-menu.png" />
+  <img width="350" alt="moOde renderer screen showing Apple Music" src="assets/moode-renderer-applemusic.png" />
+</p>
+<sub>Left: <b>Apple Music</b> in moOde's Library view menu. Right: moOde's renderer screen while Apple Music plays in the background, with previous, play/pause, next, show Apple Music and close buttons.</sub><br><br>
+
 Audio from Apple Music is sent to moOde's `_audioout` ALSA device, so it follows
 the same output chain as MPD: with CamillaDSP enabled the sound passes through
 your CamillaDSP configuration before reaching the DAC/HAT (tested with the
@@ -76,6 +82,12 @@ in from your computer through Chromium's remote inspector:
   (Apple Music Web only offers this gesture on phones).
 - Command line: `sudo moode-applemusic open | hide | show | close | toggle | status`.
 
+<p>
+  <img width="350" alt="Apple Music album page on the moOde display" src="assets/applemusic-album.png" />
+  <img width="350" alt="Apple Music full-screen player with the blurred cover backdrop" src="assets/applemusic-player.png" />
+</p>
+<sub>Apple Music on the 720 × 1280 Touch Display 2 with the Dark Glass theme. Left: an album page with the <b>‹ moOde</b> button and the mini player. Right: the full-screen player with moOde's blurred cover backdrop.</sub><br><br>
+
 ### Apple Music in moOde
 
 While Apple Music runs, every moOde client (the Pi's screen, phones,
@@ -126,13 +138,16 @@ a dark theme applies the next time Apple Music opens.
 With the [SiriRemote](../SiriRemote/readme.md) project installed:
 
 - **Play/Pause, Previous/Next** (touchpad click left/right) control Apple
-  Music while it is the source: it is playing, or it has a song paused and MPD
-  is not playing. Volume keeps controlling moOde's volume (CamillaDSP), which
-  also moves Apple Music's slider.
+  Music while it is the source: it is on screen, it is playing, or it has a
+  song paused and MPD is not playing. Volume keeps controlling moOde's volume
+  (CamillaDSP), which also moves Apple Music's slider.
 - **Menu/Back** switches between Apple Music and moOde's renderer screen.
 - The remote's on-screen feedback (volume, play/pause, next, battery,
   shutdown countdown) is shown on top of Apple Music too, centred on the
   cover of the full-screen player.
+
+<img width="350" alt="Siri Remote volume overlay on top of Apple Music" src="assets/applemusic-remote-overlay.png" />
+<br><sub>The Siri Remote's volume overlay on top of Apple Music's full-screen player.</sub><br><br>
 
 ## Volume
 
