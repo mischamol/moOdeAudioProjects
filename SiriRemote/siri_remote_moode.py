@@ -710,8 +710,8 @@ class AppleMusicBridge:
     While Apple Music is on screen, or has something queued and MPD is not
     playing, Play/Pause
     and Previous/Next control Apple Music instead of MPD, and Menu/Back
-    switches between Apple Music and moOde's renderer screen. Without that
-    project the state file does not exist and nothing changes.
+    returns from Apple Music to moOde. Without that project the state file
+    does not exist and nothing changes.
     """
 
     STATE_FILE = "/dev/shm/moode-applemusic/state.json"
@@ -759,6 +759,11 @@ class AppleMusicBridge:
 
     def visible(self) -> bool:
         return self.running() and not os.path.exists(self.HIDDEN_FILE)
+
+    def player_open(self) -> bool:
+        """Apple Music's full-screen player is open."""
+        view = (self._state() or {}).get("view")
+        return isinstance(view, dict) and bool(view.get("player"))
 
     def active(self) -> bool:
         state = self._state()
@@ -1136,30 +1141,48 @@ class X11ClickWorker:
         apple_music = self.apple_music
         if apple_music is None or not apple_music.running():
             return False
+        visible = apple_music.visible()
         if item == "menu":
-            # Menu/Back switches between Apple Music and moOde's renderer screen.
-            if apple_music.visible():
+            # In Apple Music, Menu/Back switches between the full-screen
+            # player and Home, like moOde's Playback and Library views.
+            # Within moOde it keeps its normal behaviour.
+            if visible:
+                if apple_music.player_open():
+                    apple_music.control("home")
+                    LOG.info("Menu/Back -> Apple Music Home")
+                else:
+                    apple_music.control("player")
+                    LOG.info("Menu/Back -> Apple Music player")
+                return True
+            return False
+        if item == "library-menu":
+            # Double Menu/Back: back to moOde and its Library source chooser,
+            # where Apple Music is one of the sources.
+            if visible:
                 apple_music.window("hide")
-                LOG.info("Menu/Back -> hide Apple Music")
-                return True
-            if apple_music.active():
-                apple_music.window("show")
-                LOG.info("Menu/Back -> show Apple Music")
-                return True
+                LOG.info("Menu/Back double-click -> hide Apple Music")
             return False
-        if not apple_music.active() and not apple_music.visible():
-            return False
-        # moOde's views are covered by Apple Music or its renderer screen:
-        # touchpad left/right are Previous/Next, other navigation does nothing.
         action = item.partition(":")[2]
-        if item.startswith("navigation:") and action in ("select-left", "select-right"):
+        select_side = item.startswith("navigation:") and action in ("select-left", "select-right")
+        if not visible:
+            # moOde is on screen. Only the Playback view's touchpad
+            # Previous/Next follows Apple Music while it is the source.
+            if not select_side or not apple_music.active():
+                return False
+            try:
+                if not self._get_current_view().startswith("playback"):
+                    return False
+            except RuntimeError:
+                return False
+        if select_side:
             if self.moode_worker is not None:
                 if action == "select-left":
                     self.moode_worker.submit("Touchpad left / Previous", self.previous_command)
                 else:
                     self.moode_worker.submit("Touchpad right / Next", self.next_command)
             return True
-        LOG.debug("Ignoring %s while Apple Music is the source", item)
+        # Apple Music covers moOde: swipes and the centre click do nothing.
+        LOG.debug("Ignoring %s while Apple Music is on screen", item)
         return True
 
     def _run(self) -> None:
@@ -1170,7 +1193,7 @@ class X11ClickWorker:
             if item is None:
                 return
             try:
-                if item != "library-menu" and self._apple_music_item(item):
+                if self._apple_music_item(item):
                     continue
                 if item == "menu":
                     if (

@@ -566,6 +566,11 @@ class FakeAppleMusic:
     def visible(self):
         return self._visible
 
+    player = False
+
+    def player_open(self):
+        return self.player
+
     def control(self, action):
         self.controls.append(action)
         return {"ok": True, "state": "pause"}
@@ -632,7 +637,7 @@ class AppleMusicTests(unittest.TestCase):
                     handle.write('{"time": %f, "playing": true, "item": null}' % (remote.time.time() - 60))
                 self.assertFalse(bridge.active())
 
-    def test_menu_hides_visible_apple_music_and_touchpad_click_is_next(self):
+    def test_visible_apple_music_takes_menu_and_touchpad_click_is_next(self):
         apple_music = FakeAppleMusic(True, visible=True)
         worker = FakeWorker()
         with mock.patch.dict(os.environ, {"SIRI_MENU_SCREEN_CLICK": "yes",
@@ -651,8 +656,80 @@ class AppleMusicTests(unittest.TestCase):
             clicker.thread.join(1)
         click.assert_not_called()
         key.assert_not_called()
-        self.assertEqual(apple_music.windows, ["hide"])
+        self.assertEqual(apple_music.windows, [])
+        self.assertEqual(apple_music.controls, ["player"])
         self.assertEqual(worker.actions, [("Touchpad right / Next", "next")])
+
+
+    def run_menu(self, apple_music, double=False):
+        with mock.patch.dict(os.environ, {"SIRI_MENU_SCREEN_CLICK": "yes",
+                                          "SIRI_LIBRARY_NAVIGATION": "yes"}, clear=False):
+            clicker = remote.X11ClickWorker(FakeRendererGuard(True))
+        clicker.apple_music = apple_music
+        with mock.patch.object(clicker, "_ensure_playback"), \
+                mock.patch.object(clicker, "_click") as click, \
+                mock.patch.object(clicker, "_emit_navigation_key") as key:
+            clicker.start()
+            clicker.submit_library_menu() if double else clicker.submit()
+            clicker.stop()
+            clicker.thread.join(1)
+        return click, key
+
+    def test_menu_switches_between_apple_music_player_and_home(self):
+        apple_music = FakeAppleMusic(True, visible=True)
+        apple_music.player = True
+        click, _key = self.run_menu(apple_music)
+        apple_music.player = False
+        self.run_menu(apple_music)
+        click.assert_not_called()
+        self.assertEqual(apple_music.controls, ["home", "player"])
+        self.assertEqual(apple_music.windows, [])
+
+    def test_double_menu_returns_to_moode_source_chooser(self):
+        apple_music = FakeAppleMusic(True, visible=True)
+        _click, key = self.run_menu(apple_music, double=True)
+        self.assertEqual(apple_music.windows, ["hide"])
+        key.assert_called_once_with("library-menu")
+
+    def test_bridge_player_open_reads_view(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "state.json")
+            bridge = remote.AppleMusicBridge("http://localhost/command/", 1)
+            with mock.patch.object(remote.AppleMusicBridge, "STATE_FILE", path):
+                for state, expected in (({"view": {"player": True}}, True),
+                                        ({"view": {"player": False}}, False),
+                                        ({}, False)):
+                    state["time"] = remote.time.time()
+                    with open(path, "w", encoding="utf-8") as handle:
+                        handle.write(remote.json.dumps(state))
+                    self.assertEqual(bridge.player_open(), expected, state)
+
+    def test_hidden_apple_music_leaves_moode_navigation_alone(self):
+        apple_music = FakeAppleMusic(True, visible=False)
+        worker = FakeWorker()
+        with mock.patch.dict(os.environ, {"SIRI_MENU_SCREEN_CLICK": "yes",
+                                          "SIRI_LIBRARY_NAVIGATION": "yes"}, clear=False):
+            clicker = remote.X11ClickWorker(FakeRendererGuard(True))
+        clicker.apple_music = apple_music
+        clicker.moode_worker = worker
+        views = iter(["playback,radio", "album"])
+        with mock.patch.object(clicker, "_ensure_playback"), \
+                mock.patch.object(clicker, "_click") as click, \
+                mock.patch.object(clicker, "_get_current_view", side_effect=lambda: next(views)), \
+                mock.patch.object(clicker, "_emit_navigation_key") as key, \
+                mock.patch.object(clicker, "_emit_navigation_keys") as keys:
+            clicker.start()
+            clicker.submit()                              # Menu: normal moOde click
+            clicker.submit_navigation("select-left")      # Playback: Apple Music previous
+            clicker.submit_navigation("select-right")     # Album view: normal activation
+            clicker.submit_navigation_actions(["down"])   # swipe: normal moOde focus
+            clicker.stop()
+            clicker.thread.join(1)
+        click.assert_called_once()
+        self.assertEqual(apple_music.windows, [])
+        self.assertEqual(worker.actions, [("Touchpad left / Previous", "previous")])
+        self.assertIn(mock.call("select-right"), key.call_args_list)
+        keys.assert_called_once_with(["down"])
 
 
 class X11ClickWorkerTests(unittest.TestCase):

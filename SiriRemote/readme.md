@@ -229,10 +229,14 @@ Bluetooth callback.
   through `applemusic.php`; the overlay shows the resulting state as usual.
 - Volume keeps using moOde's `set_volume`, which also moves Apple Music's
   volume slider.
-- Menu/Back hides Apple Music when it is on screen and shows it again from
-  moOde's renderer screen.
-- Touchpad swipes and the centre click do nothing meanwhile, because moOde's
-  views are covered by Apple Music or its renderer screen.
+- In Apple Music, Menu/Back switches between the full-screen player and
+  Apple Music's Home page, like moOde's Playback and Library views. A double
+  press hides Apple Music and opens moOde's Library source chooser, which
+  includes Apple Music. Within moOde, Menu/Back keeps its normal behaviour.
+- In moOde's Playback view, touchpad left/right stay Previous/Next for Apple
+  Music while it is the source; in the other views they navigate as usual.
+- Touchpad swipes and the centre click do nothing while Apple Music covers
+  the screen.
 - At daemon start, the Playback synchronization click is skipped while Apple
   Music is on screen.
 

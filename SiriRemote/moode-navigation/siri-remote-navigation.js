@@ -9,6 +9,8 @@
         '#viewswitch .tag-view-btn',
         '#viewswitch .album-view-btn',
         '#viewswitch .playlist-view-btn',
+        // Added by the AppleMusic project, when installed.
+        '#viewswitch .applemusic-view-btn',
     ].join(', ');
     const PLAYBACK_RETURN_MS = 5000;
     const CONTINUATION_BATCH_DELAY_MS = 12;
