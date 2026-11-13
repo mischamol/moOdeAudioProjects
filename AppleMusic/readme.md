@@ -51,10 +51,27 @@ The installer:
 
 Run the installer again after a moOde update that replaces `header.php`.
 
+## Renderers page
+
+moOde's **Configure → Renderers** gets an **Apple Music Webplayer** block,
+like AirPlay or Spotify Connect:
+
+- **Service** ON/OFF. Off closes Apple Music and removes it from the Library
+  menu; the launcher refuses to open it (`APPLEMUSIC_ENABLED=no`).
+- **Account**: *Signed in* or *Not signed in*, as reported by Apple Music
+  (known once Apple Music has been opened since the Pi started).
+- **Sign in** opens Apple's own sign-in window on the moOde display; **Sign
+  out** signs this player out of Apple Music (after a confirmation). Your
+  Apple Account password never passes through moOde.
+
+<img width="350" alt="Apple Music Webplayer block on moOde's Renderers page" src="assets/moode-renderers-applemusic.png" />
+<br><sub>The Apple Music Webplayer block on Configure → Renderers.</sub><br><br>
+
 ## Sign in (once)
 
-The local display has no keyboard. Either plug in a USB keyboard once, or sign
-in from your computer through Chromium's remote inspector:
+Choose **Sign in** on the Renderers page (or **Log in** in Apple Music). The
+local display has no keyboard: either plug in a USB keyboard once, or type
+from your computer through Chromium's remote inspector:
 
 1. Open Apple Music on the Pi with remote debugging, and tunnel the port:
 
@@ -80,9 +97,13 @@ in from your computer through Chromium's remote inspector:
   Library menu → **Apple Music** to return to it at once. The button is
   hidden while the full-screen player is open, where Apple Music has its own
   buttons.
+- **Full-screen player opens by itself** when something new starts that you
+  chose: a tap on an album, playlist, station or song, or a click with the
+  Siri Remote. Not for the next song of an album, resuming a paused song, or
+  the mini player's own buttons.
 - **Swipe down** on the full-screen player closes it, as in the phone app
   (Apple Music Web only offers this gesture on phones).
-- Command line: `sudo moode-applemusic open | hide | show | close | toggle | status`.
+- Command line: `sudo moode-applemusic open | hide | show | close | toggle | status | enable | disable`.
 
 <p>
   <img width="350" alt="Apple Music album page on the moOde display" src="assets/applemusic-album.png" />
@@ -150,6 +171,14 @@ With the [SiriRemote](../SiriRemote/readme.md) project installed:
 - **Menu/Back twice** returns to moOde and opens its Library source chooser,
   where Apple Music is one of the sources. Within moOde, Menu/Back works as
   usual.
+- **Touchpad in Apple Music**, like moOde's Library: a swipe moves a focus
+  frame (in moOde's accent colour) over Apple Music's tiles, cards, buttons
+  and songs, scrolling along, also through the horizontal rows (tiles to the
+  right of the screen included); a touchpad click plays the focused album,
+  playlist, station or song at once, without opening its page (touch the
+  screen to open an album page). Touching the screen or choosing an item
+  removes the frame. In the full-screen player, touchpad left/right are
+  Previous/Next.
 - In moOde's Playback view, touchpad left/right stay Previous/Next for Apple
   Music while it is the source; other moOde views navigate as usual.
 - The remote's on-screen feedback (volume, play/pause, next, battery,
@@ -193,6 +222,7 @@ Without CamillaDSP the slider works as a normal browser volume.
 | `APPLEMUSIC_FREEZE_MOODE` | `no` | pause moOde's own browser while Apple Music is open (no measurable gain in tests) |
 | `APPLEMUSIC_EXTRA_FLAGS` | empty | extra Chromium flags |
 | `APPLEMUSIC_COLOR_SCHEME` | `auto` | `auto` = light/dark like the moOde theme, or `dark` / `light` |
+| `APPLEMUSIC_ENABLED` | `yes` | service on/off; set by the switch on Configure → Renderers |
 | `APPLEMUSIC_LANGUAGE` | empty | interface language, e.g. `en-GB`; the store (catalogue, subscription) stays the one in `APPLEMUSIC_URL`. Empty = the store's own language |
 
 ## Performance on the Pi
@@ -221,6 +251,15 @@ that took ~110 % CPU in the page plus ~70 % in Chromium's GPU process, and the
 lyrics stuttered (43 fps, frames up to 100 ms). The extension turns that blur
 off inside the lyrics' shadow DOM: other lines are dimmed but sharp, the
 word-by-word highlight stays, and the lyrics run at 60 fps with ~35 % CPU.
+
+Sections of a page that are off screen (rows of tiles, track lists) get
+`content-visibility: auto`, so the browser only renders them when they scroll
+into view. Remote navigation right after a page loads went from steps of
+1–4 s, with the page drawing about one frame per second for up to 25 s, to
+about 50–80 ms per step. Artwork is requested at the size the 720 × 1280
+display needs: tiles shown 144 px wide (288 device pixels) were loaded at
+592 × 592 and now at 300 × 300, album headers at 480 × 480, large cards at
+450 × 600 instead of 900 × 1200 (network rules in the extension).
 
 Apple Music Web also keeps pages you left in memory. After some browsing the
 page held ~182 000 DOM nodes while showing ~900, and the Pi got steadily

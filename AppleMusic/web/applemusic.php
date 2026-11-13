@@ -6,9 +6,14 @@
  * GET  applemusic.php?cmd=volume              CamillaDSP volume for the Apple Music slider
  * POST applemusic.php?cmd=volume&level=0..100 set CamillaDSP volume directly
  * GET  applemusic.php?cmd=state               now playing, for the moOde UI
+ * GET  applemusic.php?cmd=settings            service on/off and sign-in state (Renderers page)
+ * POST applemusic.php?cmd=enable|disable      turn the service on or off
+ * POST applemusic.php?cmd=signin|signout      Apple's sign-in/out on the Pi's screen
  * POST applemusic.php?cmd=control&action=play|pause|toggle|next|prev|home|player
  *                                             (home: close the player and show Home;
  *                                              player: open the full-screen player)
+ * POST applemusic.php?cmd=control&action=nav:left|right|up|down|select[,...]
+ *                                             remote focus navigation in Apple Music
  * POST applemusic.php?cmd=sync                from the Apple Music extension (JSON body):
  *                                             stores now playing, returns commands + volume
  */
@@ -129,6 +134,8 @@ const RUN_DIR = '/dev/shm/moode-applemusic';
 const STATE_FILE = RUN_DIR . '/state.json';
 const COMMANDS_FILE = RUN_DIR . '/commands';
 const STATE_MAX_AGE = 8;  // seconds without sync = Apple Music not running
+// Last known sign-in state; outside RUN_DIR so it survives closing Apple Music.
+const AUTH_FILE = '/dev/shm/moode-applemusic-auth.json';
 
 function read_state(): ?array {
     $s = @json_decode((string)@file_get_contents(STATE_FILE), true);
@@ -276,7 +283,8 @@ function theme_state(): array {
 }
 
 $cmd = $_GET['cmd'] ?? '';
-$allowed = ['open', 'close', 'toggle', 'status', 'volume', 'hide', 'show', 'state', 'control', 'sync', 'theme'];
+$allowed = ['open', 'close', 'toggle', 'status', 'volume', 'hide', 'show', 'state', 'control', 'sync', 'theme',
+    'settings', 'enable', 'disable', 'signin', 'signout'];
 if (!in_array($cmd, $allowed, true)) {
     http_response_code(400);
     echo json_encode(['error' => 'unknown command']);
@@ -286,6 +294,43 @@ $post = $_SERVER['REQUEST_METHOD'] === 'POST';
 
 if ($cmd === 'state') {
     echo json_encode(app_state());
+    exit;
+}
+
+// moOde Configure > Renderers: service on/off and Apple Music sign-in.
+if ($cmd === 'settings') {
+    $auth = @json_decode((string)@file_get_contents(AUTH_FILE), true);
+    $app = app_state()['app'];
+    exec('sudo -n /usr/local/bin/moode-applemusic enabled 2>/dev/null', $o);
+    echo json_encode([
+        'enabled' => trim((string)end($o)) !== 'no',
+        'app' => $app,
+        // Known while Apple Music runs, and remembered after it closes.
+        'signed_in' => is_array($auth) ? (bool)$auth['signed_in'] : null,
+        'checked' => is_array($auth) ? (int)$auth['time'] : null,
+    ]);
+    exit;
+}
+
+if (in_array($cmd, ['enable', 'disable'], true)) {
+    if (!$post) { http_response_code(405); echo json_encode(['error' => 'use POST']); exit; }
+    exec('sudo -n /usr/local/bin/moode-applemusic ' . $cmd . ' 2>&1', $out, $rc);
+    echo json_encode(['ok' => $rc === 0, 'enabled' => $cmd === 'enable']);
+    exit;
+}
+
+// Sign in/out happens in Apple's own window on the Pi's screen; no password
+// passes through moOde.
+if (in_array($cmd, ['signin', 'signout'], true)) {
+    if (!$post) { http_response_code(405); echo json_encode(['error' => 'use POST']); exit; }
+    $state = app_state()['app'];
+    exec('sudo -n /usr/local/bin/moode-applemusic open 2>&1', $out, $rc);
+    if ($rc !== 0) { echo json_encode(['ok' => false, 'error' => trim(implode(' ', $out))]); exit; }
+    // A fresh Apple Music needs a moment before it can take the command.
+    if ($state === 'stopped') {
+        for ($i = 0; $i < 60 && !is_dir(RUN_DIR); $i++) { usleep(250000); }
+    }
+    echo json_encode(['ok' => push_command($cmd), 'started' => $state === 'stopped']);
     exit;
 }
 
@@ -303,6 +348,13 @@ if ($cmd === 'sync') {
     $state = ['time' => microtime(true), 'ready' => !empty($in['ready']), 'playing' => $playing, 'item' => clean_item($in['item'] ?? null),
         // Full-screen player open / on the Home page (remote Menu/Back).
         'view' => ['player' => !empty($in['view']['player']), 'home' => !empty($in['view']['home'])]];
+    if (isset($in['authorized']) && !empty($in['ready'])) {
+        $signedIn = (bool)$in['authorized'];
+        $prevAuth = @json_decode((string)@file_get_contents(AUTH_FILE), true);
+        if (!is_array($prevAuth) || $prevAuth['signed_in'] !== $signedIn || time() - $prevAuth['time'] > 60) {
+            @file_put_contents(AUTH_FILE, json_encode(['signed_in' => $signedIn, 'time' => time()]));
+        }
+    }
     $commands = take_commands();
     // Apple Music and MPD share the output device: whoever starts last wins.
     $mpd = mpd_command('status');
@@ -366,7 +418,9 @@ if ($cmd === 'sync') {
 if ($cmd === 'control') {
     if (!$post) { http_response_code(405); echo json_encode(['error' => 'use POST']); exit; }
     $action = $_GET['action'] ?? '';
-    if (!in_array($action, ['play', 'pause', 'toggle', 'next', 'prev', 'home', 'player'], true)) {
+    // nav:down or nav:right,right,right: remote focus navigation (applenav.js).
+    $isNav = preg_match('/^nav:(left|right|up|down|select)(,(left|right|up|down|select)){0,15}$/', $action) === 1;
+    if (!$isNav && !in_array($action, ['play', 'pause', 'toggle', 'next', 'prev', 'home', 'player'], true)) {
         http_response_code(400);
         echo json_encode(['error' => 'unknown action']);
         exit;

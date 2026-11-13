@@ -99,13 +99,23 @@
             }, ms);
         });
     }
+    // One sync request is always open: applemusic.php holds it until a
+    // command arrives (or 0.9 s), so remote and moOde buttons reach Apple
+    // Music at once. The next request starts as soon as one returns, with the
+    // newest state from nowplaying.js.
     var syncing = false;
-    var pending = null;
+    var latest = null;
     function sync(state) {
-        if (syncing) { pending = state; return; }
+        if (state) { latest = state; }
+        if (syncing || !latest) { return; }
         syncing = true;
-        chrome.runtime.sendMessage({ type: 'moode-sync', state: state }, function (res) {
+        chrome.runtime.sendMessage({ type: 'moode-sync', state: latest }, function (res) {
             syncing = false;
+            if (chrome.runtime.lastError || !res) {
+                // moOde or the extension restarting: retry, but not in a tight loop.
+                setTimeout(sync, 1000);
+                return;
+            }
             if (res) {
                 pushState(res.volume);
                 (res.commands || []).forEach(function (action) {
@@ -125,7 +135,7 @@
                     window.postMessage({ source: 'moode-am-ext', type: 'command', action: action }, '*');
                 });
             }
-            if (pending) { var next = pending; pending = null; sync(next); }
+            sync();
         });
     }
     window.addEventListener('message', function (ev) {

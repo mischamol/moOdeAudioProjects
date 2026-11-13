@@ -7,5 +7,41 @@
       "requestDomains": ["mvod.itunes.apple.com"],
       "resourceTypes": ["xmlhttprequest", "media", "other"]
     }
+  },
+  {
+    "id": 2,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "regexSubstitution": "\\1/300x300\\2.\\3" }
+    },
+    "condition": {
+      "regexFilter": "^(https://is[0-9]+-ssl\\.mzstatic\\.com/image/thumb/.+)/592x592(bf|sr|cc)\\.(webp|jpg|png)$",
+      "resourceTypes": ["image"]
+    }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "regexSubstitution": "\\1/480x480bb.\\2" }
+    },
+    "condition": {
+      "regexFilter": "^(https://is[0-9]+-ssl\\.mzstatic\\.com/image/thumb/.+)/592x592bb\\.(webp|jpg|png)$",
+      "resourceTypes": ["image"]
+    }
+  },
+  {
+    "id": 4,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": { "regexSubstitution": "\\1/450x600bb.\\2" }
+    },
+    "condition": {
+      "regexFilter": "^(https://is[0-9]+-ssl\\.mzstatic\\.com/image/thumb/.+)/900x1200bb\\.(webp|jpg|png)$",
+      "resourceTypes": ["image"]
+    }
   }
 ]

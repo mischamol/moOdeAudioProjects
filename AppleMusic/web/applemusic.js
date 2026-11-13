@@ -195,17 +195,156 @@
         control(btn.getAttribute('data-applemusic'));
     }, true);
 
+    // ---- Configure > Renderers: "Apple Music Webplayer" -----------------------
+    // Service on/off (off: closed, and no Library menu entry), sign-in state,
+    // and buttons to sign in or out in Apple's own window on the Pi's screen.
+    function api(cmd, post) {
+        return fetch('applemusic.php?cmd=' + cmd, { method: post ? 'POST' : 'GET', cache: 'no-store' })
+            .then(function (r) { return r.json(); });
+    }
+
+    function rendererBlock() {
+        var div = document.createElement('div');
+        div.className = 'control-group';
+        div.id = 'applemusic-renderer';
+        div.innerHTML =
+            '<legend>Apple Music Webplayer</legend>' +
+            '<label class="control-label">Service</label>' +
+            '<div class="controls">' +
+            // moOde's toggle look; its state is the "toggle-off" class, which
+            // moOde's own script only sets for blocks present at page load.
+            '  <div class="toggle" id="applemusic-toggle" role="switch" tabindex="0">' +
+            '    <label class="toggle-radio">ON </label>' +
+            '    <label class="toggle-radio">OFF</label>' +
+            '  </div>' +
+            '  <span class="config-help-static">Apple Music Web on the local display, with moOde\'s ' +
+            '  output chain (CamillaDSP). Requires an Apple Music subscription. When off, Apple Music ' +
+            '  is closed and removed from the Library menu.</span>' +
+            '</div>' +
+            '<label class="control-label">Account</label>' +
+            '<div class="controls"><span id="applemusic-account" style="display:inline-block;line-height:29px;' +
+            'margin-bottom:var(--config-ctl-margin-bottom, 1em)">…</span></div>' +
+            '<div class="controls">' +
+            '  <button type="button" class="btn btn-medium btn-primary config-btn" id="applemusic-signin">Sign in</button>' +
+            '  <span class="config-btn-after">Opens Apple\'s sign-in window on the moOde display. Type with a ' +
+            '  USB keyboard on the Pi, or through the remote inspector (see the AppleMusic readme). ' +
+            '  Your password does not pass through moOde.</span>' +
+            '</div>' +
+            '<div class="controls">' +
+            '  <button type="button" class="btn btn-medium btn-primary config-btn" id="applemusic-signout">Sign out</button>' +
+            '  <span class="config-btn-after">Apple Music account on this player</span>' +
+            '</div>';
+        return div;
+    }
+
+    function showSettings(s) {
+        var on = !!s.enabled;
+        var toggle = document.getElementById('applemusic-toggle');
+        toggle.classList.toggle('toggle-off', !on);
+        toggle.setAttribute('aria-checked', on ? 'true' : 'false');
+        var account = s.signed_in === true ? 'Signed in' :
+            s.signed_in === false ? 'Not signed in' : 'Unknown (shown once Apple Music has been opened)';
+        document.getElementById('applemusic-account').textContent = account;
+        document.getElementById('applemusic-signin').disabled = !on || s.signed_in === true;
+        document.getElementById('applemusic-signout').disabled = !on || s.signed_in === false;
+    }
+
+    function refreshSettings() { return api('settings').then(showSettings).catch(function () { /* moOde busy */ }); }
+
+    // moOde's own confirmation dialog (as for Spotify's "Clear"); the
+    // browser's confirm() lands partly off screen on the local display.
+    function confirmSignOut() {
+        var modal = document.getElementById('applemusic-signout-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'applemusic-signout-modal';
+            modal.className = 'modal hide';
+            modal.setAttribute('tabindex', '-1');
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-hidden', 'true');
+            modal.innerHTML =
+                '<div class="modal-header"><button aria-label="Close" type="button" class="close" data-dismiss="modal">&times;</button>' +
+                '<h3>Sign out of Apple Music?</h3></div>' +
+                '<div class="modal-body"><p>This player will no longer play Apple Music until you sign in again.</p></div>' +
+                '<div class="modal-footer">' +
+                '<button type="button" class="btn" data-dismiss="modal">Cancel</button>' +
+                '<button type="button" class="btn btn-primary" id="applemusic-signout-yes">Yes</button></div>';
+            document.body.appendChild(modal);
+            modal.querySelector('#applemusic-signout-yes').addEventListener('click', function () {
+                window.jQuery(modal).modal('hide');
+                document.getElementById('applemusic-signout').disabled = true;
+                api('signout', true)
+                    .then(function (res) { toast(res && res.ok ? 'Signed out' : 'Apple Music does not respond'); })
+                    .catch(function () { toast('Apple Music does not respond'); })
+                    .then(function () { setTimeout(refreshSettings, 4000); });
+            });
+        }
+        window.jQuery(modal).modal('show');
+    }
+
+    function initRenderersPage() {
+        var legends = document.querySelectorAll('.container legend');
+        if (!legends.length || document.getElementById('applemusic-renderer')) { return false; }
+        // After Qobuz Connect (the streaming services), else after the last renderer.
+        var after = null;
+        for (var i = 0; i < legends.length; i++) {
+            if (/Qobuz/i.test(legends[i].textContent)) { after = legends[i].closest('.control-group'); }
+        }
+        if (!after) { after = legends[legends.length - 1].closest('.control-group'); }
+        if (!after) { return false; }
+        var block = rendererBlock();
+        after.parentNode.insertBefore(block, after.nextSibling);
+
+        document.getElementById('applemusic-toggle').addEventListener('click', function (ev) {
+            ev.preventDefault();
+            var toggle = ev.currentTarget;
+            var on = toggle.classList.contains('toggle-off');   // switch to the other state
+            toggle.classList.toggle('toggle-off', !on);
+            api(on ? 'enable' : 'disable', true)
+                .then(function () { toast(on ? 'Apple Music Webplayer on' : 'Apple Music Webplayer off'); return refreshSettings(); })
+                .catch(function () { toast('Could not change the setting'); });
+        });
+        block.addEventListener('click', function (ev) {
+            var b = ev.target.closest('button');
+            if (!b || !block.contains(b)) { return; }
+            ev.preventDefault();
+            var cmd = b.id === 'applemusic-signin' ? 'signin' : b.id === 'applemusic-signout' ? 'signout' : null;
+            if (!cmd) { return; }
+            if (cmd === 'signout') { confirmSignOut(); return; }
+            b.disabled = true;
+            if (cmd === 'signin') { toast('Apple sign-in opens on the moOde display'); }
+            api(cmd, true)
+                .then(function (res) { if (res && res.ok === false && res.error) { toast(res.error); } })
+                .catch(function () { toast('Apple Music does not respond'); })
+                .then(function () { setTimeout(refreshSettings, 4000); });
+        });
+        refreshSettings();
+        setInterval(refreshSettings, 5000);
+        return true;
+    }
+
     function init() {
+        if (/ren-config\.php$/.test(location.pathname)) {
+            if (!initRenderersPage()) {
+                var t = 0, iv = setInterval(function () { if (initRenderersPage() || ++t > 40) { clearInterval(iv); } }, 250);
+            }
+            return;
+        }
+        if (!document.querySelector('#viewswitch, #playback-panel')) { return; }   // other configuration pages
         if (!isLocalDisplay()) {
             setInterval(poll, POLL_MS);
             setTimeout(poll, 500);
             document.addEventListener('visibilitychange', poll);
         }
-        if (addButton()) { return; }
-        var tries = 0;
-        var timer = setInterval(function () {
-            if (addButton() || ++tries > 40) { clearInterval(timer); }
-        }, 250);
+        // The Library menu entry only while the service is on.
+        api('settings').then(function (s) {
+            if (!s.enabled) { return; }
+            if (addButton()) { return; }
+            var tries = 0;
+            var timer = setInterval(function () {
+                if (addButton() || ++tries > 40) { clearInterval(timer); }
+            }, 250);
+        }).catch(function () { addButton(); });
     }
 
     if (document.readyState === 'loading') {

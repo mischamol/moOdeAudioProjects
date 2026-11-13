@@ -38,7 +38,7 @@ fi
 # 2. Launcher, Chromium extension and configuration.
 install -o root -g root -m 0755 "$script_dir/moode-applemusic" "$launcher"
 mkdir -p "$extension_dir"
-for f in manifest.json rules.json background.js content.js content.css nowebgl.js volume.js nowplaying.js idle.js theme.js siri-overlay.js siri-overlay.css; do
+for f in manifest.json rules.json background.js content.js content.css nowebgl.js volume.js nowplaying.js idle.js theme.js siri-overlay.js siri-overlay.css applenav.js; do
     install -o root -g root -m 0644 "$script_dir/extension/$f" "$extension_dir/$f"
 done
 if [ ! -f "$config" ]; then
@@ -59,8 +59,12 @@ APPLEMUSIC_EXTRA_FLAGS=
 APPLEMUSIC_COLOR_SCHEME=auto
 # Interface language, e.g. en-GB; empty = the store's own language
 APPLEMUSIC_LANGUAGE=
+# Service on/off (moOde Configure > Renderers)
+APPLEMUSIC_ENABLED=yes
 CONF
 fi
+grep -q '^APPLEMUSIC_ENABLED=' "$config" || printf '%s\n' \
+    '# Service on/off (moOde Configure > Renderers)' 'APPLEMUSIC_ENABLED=yes' >> "$config"
 # Settings added in later versions, for existing configuration files.
 grep -q '^APPLEMUSIC_COLOR_SCHEME=' "$config" || printf '%s\n' \
     '# auto = light/dark like the moOde theme; or dark / light' 'APPLEMUSIC_COLOR_SCHEME=auto' >> "$config"

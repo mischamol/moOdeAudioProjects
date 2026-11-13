@@ -49,6 +49,14 @@ html.moode-player-open .app-container > .header {
     content-visibility: hidden;
 }
 
+/* Sections (rows of tiles, track lists) outside the screen are not rendered
+   until they scroll into view: Apple Music's pages are large, and rendering
+   all of them made scrolling and remote navigation slow on the Pi. */
+#scrollable-page [data-testid="section-container"] {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px;
+}
+
 /* No animated backdrop or scrolling title in the full-screen player. */
 .dynamic-backdrop canvas { display: none !important; }
 .lcd-meta-line__marquee-scroller {

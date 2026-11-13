@@ -24,6 +24,7 @@ APPLEMUSIC_FREEZE_MOODE=no
 APPLEMUSIC_EXTRA_FLAGS=
 APPLEMUSIC_COLOR_SCHEME=auto
 APPLEMUSIC_LANGUAGE=
+APPLEMUSIC_ENABLED=yes
 # shellcheck disable=SC1090
 [ -r "$CONF" ] && . "$CONF"
 
@@ -134,9 +135,23 @@ release_audio() {
 
 after_close() { thaw_moode; rm -rf "$RUN_DIR"; restore_moode_volume; }
 
+# Service on/off (moOde's Renderers page). Off: Apple Music is closed and
+# cannot be opened; the Library menu hides its entry.
+set_enabled() {
+    if grep -q '^APPLEMUSIC_ENABLED=' "$CONF" 2>/dev/null; then
+        sed -i "s/^APPLEMUSIC_ENABLED=.*/APPLEMUSIC_ENABLED=$1/" "$CONF"
+    else
+        printf '%s\n' '# Service on/off (moOde Configure > Renderers)' "APPLEMUSIC_ENABLED=$1" >> "$CONF"
+    fi
+    APPLEMUSIC_ENABLED=$1
+    if [ "$1" = no ]; then cmd_close >/dev/null; fi
+    echo "$1"
+}
+
 cmd_open() {
     local debug=no
     [ "${1:-}" = "--debug" ] && debug=yes
+    [ "$APPLEMUSIC_ENABLED" = no ] && die "Apple Music Webplayer is turned off (moOde Configure > Renderers)"
 
     if is_running; then
         cmd_show
@@ -270,5 +285,8 @@ case "${1:-}" in
     thaw-moode) thaw_moode ;;
     after-close) after_close ;;
     release-audio) release_audio ;;
-    *) echo "Usage: sudo moode-applemusic open [--debug] | hide | show | close | toggle | status" >&2; exit 2 ;;
+    enable)  set_enabled yes ;;
+    disable) set_enabled no ;;
+    enabled) [ "$APPLEMUSIC_ENABLED" = no ] && echo no || echo yes ;;
+    *) echo "Usage: sudo moode-applemusic open [--debug] | hide | show | close | toggle | status | enable | disable" >&2; exit 2 ;;
 esac

@@ -43,7 +43,7 @@ if [ -f "$state_dir/installed-xdotool" ]; then
     echo "Removing xdotool (installed by this project)..."
     DEBIAN_FRONTEND=noninteractive apt-get purge -y -qq xdotool || true
 fi
-rm -rf /dev/shm/moode-applemusic
+rm -rf /dev/shm/moode-applemusic /dev/shm/moode-applemusic-auth.json
 
 display_user=$(systemctl show -p User --value localdisplay.service 2>/dev/null || true)
 profile=""

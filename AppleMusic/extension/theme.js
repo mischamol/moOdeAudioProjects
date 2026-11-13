@@ -33,6 +33,8 @@
             '  --playerBackgroundFallback: ' + bga(0.97) + ' !important;',
             '  --fallbackMaterialBG: ' + bga(0.97) + ' !important;',
             '  --glassMaterialBackground: ' + mbg + ' !important;',
+            // moOde's accent for the remote focus frame (applenav.js).
+            '  --moode-accent: ' + t.accent + ';',
             // Siri Remote overlay (siri-overlay.css), as in moOde's page.
             '  --siri-overlay-fill: ' + bga(0.9) + ';',
             '  --siri-overlay-text: ' + t.tx + ';',
