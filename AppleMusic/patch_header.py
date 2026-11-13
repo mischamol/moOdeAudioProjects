@@ -9,7 +9,7 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN APPLE MUSIC -->"
 END = "<!-- END APPLE MUSIC -->"
-ASSET_VERSION = 3
+ASSET_VERSION = 5
 BODY = [f'<script src="js/applemusic.js?v={ASSET_VERSION}" defer></script>']
 ANCHOR = re.compile(r'^\s*<script src="js/(?:main\.min|scripts-panels)\.js(?:\?[^"]*)?" defer></script>\s*$')
 BLOCK = re.compile(r"^[ \t]*" + re.escape(BEGIN) + r".*?" + re.escape(END) + r"[ \t]*\r?\n?", re.S | re.M)

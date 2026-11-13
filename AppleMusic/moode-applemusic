@@ -23,6 +23,7 @@ APPLEMUSIC_STOP_MPD=yes
 APPLEMUSIC_FREEZE_MOODE=no
 APPLEMUSIC_EXTRA_FLAGS=
 APPLEMUSIC_COLOR_SCHEME=auto
+APPLEMUSIC_LANGUAGE=
 # shellcheck disable=SC1090
 [ -r "$CONF" ] && . "$CONF"
 
@@ -184,9 +185,23 @@ cmd_open() {
     cp -r "$EXTENSION" "$ext_copy"
     chown -R "$display_user:$display_user" "$ext_copy"
 
+    # Interface language, e.g. en-GB: Apple Music keeps the country's store
+    # (catalogue, subscription) and switches the language with ?l=.
+    local url="$APPLEMUSIC_URL"
+    local -a lang_args=()
+    if [ -n "$APPLEMUSIC_LANGUAGE" ]; then
+        case "$url" in
+            *[?\&]l=*) ;;
+            *\?*) url="$url&l=$APPLEMUSIC_LANGUAGE" ;;
+            *)    url="$url?l=$APPLEMUSIC_LANGUAGE" ;;
+        esac
+        lang_args=(--lang="$APPLEMUSIC_LANGUAGE" --accept-lang="$APPLEMUSIC_LANGUAGE")
+    fi
+
     local -a args=(
         --user-data-dir="$profile"
-        --app="$APPLEMUSIC_URL"
+        --app="$url"
+        "${lang_args[@]}"
         --kiosk
         --window-position=0,0
         --window-size="$size"

@@ -57,8 +57,15 @@ APPLEMUSIC_FREEZE_MOODE=no
 APPLEMUSIC_EXTRA_FLAGS=
 # auto = light/dark like the moOde theme; or dark / light
 APPLEMUSIC_COLOR_SCHEME=auto
+# Interface language, e.g. en-GB; empty = the store's own language
+APPLEMUSIC_LANGUAGE=
 CONF
 fi
+# Settings added in later versions, for existing configuration files.
+grep -q '^APPLEMUSIC_COLOR_SCHEME=' "$config" || printf '%s\n' \
+    '# auto = light/dark like the moOde theme; or dark / light' 'APPLEMUSIC_COLOR_SCHEME=auto' >> "$config"
+grep -q '^APPLEMUSIC_LANGUAGE=' "$config" || printf '%s\n' \
+    '# Interface language, e.g. en-GB; empty = the store'"'"'s own language' 'APPLEMUSIC_LANGUAGE=' >> "$config"
 
 # 3. moOde web UI: endpoint, menu script and header include.
 install -o root -g root -m 0644 "$script_dir/web/applemusic.php" /var/www/applemusic.php

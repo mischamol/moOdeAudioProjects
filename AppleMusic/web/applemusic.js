@@ -26,9 +26,14 @@
         el._t = setTimeout(function () { el.style.opacity = '0'; }, 2500);
     }
 
+    // The Pi's own display: moOde's kiosk browser opens http://localhost/.
+    // (moOde's GLOBAL.chromium also matches any "CrOS" browser, such as a
+    // Chromebook or the Raspberry Pi's Chromium on another Pi.)
     function isLocalDisplay() {
-        return (typeof GLOBAL === 'object' && GLOBAL && GLOBAL.chromium) ||
-            /[?&]kiosk=1\b/.test(location.search);
+        var kiosk = false;
+        try { kiosk = localStorage.getItem('kiosk') === '1'; } catch (e) { /* no storage */ }
+        return kiosk || /[?&]kiosk=1\b/.test(location.search) ||
+            ['localhost', '127.0.0.1', '::1', '[::1]'].indexOf(location.hostname) !== -1;
     }
 
     function openAppleMusic(ev) {
@@ -70,7 +75,9 @@
     // While Apple Music runs, moOde shows it like AirPlay or Spotify Connect:
     // moOde's own renderer screen (#inpsrc-indicator) with cover, title and
     // the output format, plus play/pause/next/previous, "show on the Pi
-    // screen" and "close" buttons. This works on every moOde client.
+    // screen" and "close" buttons. Phones and computers only: the Pi's own
+    // display has Apple Music's player itself, and "‹ moOde" there returns to
+    // the normal moOde interface.
     var POLL_MS = 2000;
     var OTHER_RENDERERS = ['btactive', 'aplactive', 'spotactive', 'qbzactive', 'slactive', 'paactive', 'rbactive', 'inpactive'];
     var shown = false;
@@ -127,7 +134,9 @@
             artist: esc(item.artist),
             album: esc(item.album),
             cover_url: item.artwork || (typeof DEFAULT_ALBUM_COVER === 'string' ? DEFAULT_ALBUM_COVER : ''),
-            sformat: 'AAC 256 kbps',
+            // moOde clears its "… Active" text once metadata is shown; the
+            // format badge under the title says which source plays.
+            sformat: '<i class="fa-brands fa-apple"></i> Apple Music &middot; AAC 256 kbps',
             oformat: st.oformat || (st.playing ? '' : 'Not playing'),
             duration: Math.round(item.duration || 0),
             playstate: st.playing ? 'Resume' : 'Pause'
@@ -187,9 +196,11 @@
     }, true);
 
     function init() {
-        setInterval(poll, POLL_MS);
-        setTimeout(poll, 500);
-        document.addEventListener('visibilitychange', poll);
+        if (!isLocalDisplay()) {
+            setInterval(poll, POLL_MS);
+            setTimeout(poll, 500);
+            document.addEventListener('visibilitychange', poll);
+        }
         if (addButton()) { return; }
         var tries = 0;
         var timer = setInterval(function () {

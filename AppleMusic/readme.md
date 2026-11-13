@@ -3,15 +3,15 @@
 This project adds **Apple Music** to moOde's Library view menu, next to Radio,
 Folder, Tag, Album and Playlist. Choosing it opens Apple Music Web full screen
 on the Raspberry Pi's local display. A small **‹ moOde** button in Apple Music
-returns to the moOde interface while the music keeps playing; moOde then shows
-Apple Music on its renderer screen, like AirPlay or Spotify Connect, with
-cover, title and play/pause/next/previous buttons.
+returns to the moOde interface while the music keeps playing. Phones and
+computers show Apple Music on moOde's renderer screen, like AirPlay or Spotify
+Connect, with cover, title and play/pause/next/previous buttons.
 
 <p>
   <img width="350" alt="moOde Library menu with the Apple Music entry" src="assets/moode-library-menu.png" />
   <img width="350" alt="moOde renderer screen showing Apple Music" src="assets/moode-renderer-applemusic.png" />
 </p>
-<sub>Left: <b>Apple Music</b> in moOde's Library view menu. Right: moOde's renderer screen while Apple Music plays in the background, with previous, play/pause, next, show Apple Music and close buttons.</sub><br><br>
+<sub>Left: <b>Apple Music</b> in moOde's Library view menu. Right: moOde's renderer screen on a phone while Apple Music plays on the Pi, with previous, play/pause, next, show Apple Music and close buttons.</sub><br><br>
 
 Audio from Apple Music is sent to moOde's `_audioout` ALSA device, so it follows
 the same output chain as MPD: with CamillaDSP enabled the sound passes through
@@ -75,9 +75,11 @@ in from your computer through Chromium's remote inspector:
   on the local display (or shows it again at once when it is already
   running). Selecting it from a phone or computer browser opens Apple Music on
   the Pi's screen as well.
-- **‹ moOde** (top right in Apple Music): back to moOde. Apple Music keeps
-  running and playing in the background. The button is hidden while the
-  full-screen player is open, where Apple Music has its own buttons.
+- **‹ moOde** (top right in Apple Music): back to the normal moOde
+  interface. Apple Music keeps running and playing in the background; choose
+  Library menu → **Apple Music** to return to it at once. The button is
+  hidden while the full-screen player is open, where Apple Music has its own
+  buttons.
 - **Swipe down** on the full-screen player closes it, as in the phone app
   (Apple Music Web only offers this gesture on phones).
 - Command line: `sudo moode-applemusic open | hide | show | close | toggle | status`.
@@ -90,10 +92,12 @@ in from your computer through Chromium's remote inspector:
 
 ### Apple Music in moOde
 
-While Apple Music runs, every moOde client (the Pi's screen, phones,
-computers) shows it on moOde's renderer screen, the same screen moOde uses for
-AirPlay and Spotify Connect: cover, artist, title, album, *AAC 256 kbps* and
-the output format. Its buttons:
+While Apple Music runs, moOde on phones and computers shows it on moOde's
+renderer screen, the same screen moOde uses for AirPlay and Spotify Connect:
+cover, artist, title, album, an *Apple Music · AAC 256 kbps* badge and the
+output format. The Pi's own display does not: there Apple Music's own player
+is the player, and **‹ moOde** leads to the normal moOde interface. Buttons of
+the renderer screen:
 
 | Button | Action |
 |---|---|
@@ -141,7 +145,13 @@ With the [SiriRemote](../SiriRemote/readme.md) project installed:
   Music while it is the source: it is on screen, it is playing, or it has a
   song paused and MPD is not playing. Volume keeps controlling moOde's volume
   (CamillaDSP), which also moves Apple Music's slider.
-- **Menu/Back** switches between Apple Music and moOde's renderer screen.
+- **Menu/Back** in Apple Music switches between the full-screen player and
+  Apple Music's Home page, like moOde's Playback and Library views.
+- **Menu/Back twice** returns to moOde and opens its Library source chooser,
+  where Apple Music is one of the sources. Within moOde, Menu/Back works as
+  usual.
+- In moOde's Playback view, touchpad left/right stay Previous/Next for Apple
+  Music while it is the source; other moOde views navigate as usual.
 - The remote's on-screen feedback (volume, play/pause, next, battery,
   shutdown countdown) is shown on top of Apple Music too, centred on the
   cover of the full-screen player.
@@ -183,6 +193,7 @@ Without CamillaDSP the slider works as a normal browser volume.
 | `APPLEMUSIC_FREEZE_MOODE` | `no` | pause moOde's own browser while Apple Music is open (no measurable gain in tests) |
 | `APPLEMUSIC_EXTRA_FLAGS` | empty | extra Chromium flags |
 | `APPLEMUSIC_COLOR_SCHEME` | `auto` | `auto` = light/dark like the moOde theme, or `dark` / `light` |
+| `APPLEMUSIC_LANGUAGE` | empty | interface language, e.g. `en-GB`; the store (catalogue, subscription) stays the one in `APPLEMUSIC_URL`. Empty = the store's own language |
 
 ## Performance on the Pi
 
@@ -234,8 +245,8 @@ Chromium keeps running a cached version of the extension's service worker.
 - Apple Music Web streams AAC 256 kbps; lossless is not available in the web
   player.
 - Apple Music uses an extra ~350–600 MB RAM while running, also in the
-  background. Close it with ✕ on moOde's renderer screen when you no longer
-  need it.
+  background. Close it with ✕ on moOde's renderer screen (phone or
+  computer) or `sudo moode-applemusic close` when you no longer need it.
 - Search and browsing happen in Apple Music itself, on the Pi's screen; moOde
   only shows and controls what plays.
 

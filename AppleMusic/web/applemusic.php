@@ -6,7 +6,9 @@
  * GET  applemusic.php?cmd=volume              CamillaDSP volume for the Apple Music slider
  * POST applemusic.php?cmd=volume&level=0..100 set CamillaDSP volume directly
  * GET  applemusic.php?cmd=state               now playing, for the moOde UI
- * POST applemusic.php?cmd=control&action=play|pause|toggle|next|prev
+ * POST applemusic.php?cmd=control&action=play|pause|toggle|next|prev|home|player
+ *                                             (home: close the player and show Home;
+ *                                              player: open the full-screen player)
  * POST applemusic.php?cmd=sync                from the Apple Music extension (JSON body):
  *                                             stores now playing, returns commands + volume
  */
@@ -298,7 +300,9 @@ if ($cmd === 'sync') {
     $in = is_array($in) ? $in : [];
     $prev = read_state();
     $playing = !empty($in['playing']);
-    $state = ['time' => microtime(true), 'ready' => !empty($in['ready']), 'playing' => $playing, 'item' => clean_item($in['item'] ?? null)];
+    $state = ['time' => microtime(true), 'ready' => !empty($in['ready']), 'playing' => $playing, 'item' => clean_item($in['item'] ?? null),
+        // Full-screen player open / on the Home page (remote Menu/Back).
+        'view' => ['player' => !empty($in['view']['player']), 'home' => !empty($in['view']['home'])]];
     $commands = take_commands();
     // Apple Music and MPD share the output device: whoever starts last wins.
     $mpd = mpd_command('status');
@@ -362,7 +366,7 @@ if ($cmd === 'sync') {
 if ($cmd === 'control') {
     if (!$post) { http_response_code(405); echo json_encode(['error' => 'use POST']); exit; }
     $action = $_GET['action'] ?? '';
-    if (!in_array($action, ['play', 'pause', 'toggle', 'next', 'prev'], true)) {
+    if (!in_array($action, ['play', 'pause', 'toggle', 'next', 'prev', 'home', 'player'], true)) {
         http_response_code(400);
         echo json_encode(['error' => 'unknown action']);
         exit;
