@@ -450,7 +450,7 @@ moOde behavior. A matching JavaScript guard provides defence in depth. Only
 the local kiosk receives the Siri Remote focus and inactivity handling.
 
 General moOde styling is deliberately not part of SiriRemote. The separately
-installable [DarkGlassTheme](../DarkGlassTheme/readme.md) provides the
+installable [DarkGlassTheme](../%5Bunmaintained%5D/DarkGlassTheme/readme.md) provides the
 transparent Playback controls, cover/background presentation, optimized
 Library rendering, and tint-free remote focus visible in the screenshots.
 Touchpad navigation also works with moOde's standard themes; without Liquid

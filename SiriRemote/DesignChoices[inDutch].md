@@ -175,7 +175,7 @@ verbinden toont een volgende druk op Microfoon/Siri de batterijstand.
 
 Algemene vormgeving van moOde hoort niet bij de verantwoordelijkheid van de
 Siri Remote-daemon. Deze CSS/JavaScript is daarom verplaatst naar het zelfstandig
-installeerbare [DarkGlassTheme](../DarkGlassTheme/readme.md). Het thema
+installeerbare [DarkGlassTheme](../%5Bunmaintained%5D/DarkGlassTheme/readme.md). Het thema
 registreert zichzelf in moOde's bestaande themakiezer en kan ook zonder
 SiriRemote worden gebruikt.
 
