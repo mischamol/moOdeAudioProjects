@@ -1,6 +1,7 @@
 // Apple Music in moOde's theme: background, text and accent colour from
 // Preferences > Appearance, and moOde's blurred cover backdrop behind the
-// full-screen player. Light/dark follows the theme too (launcher flag).
+// full-screen player. Light/dark follows the theme too (launcher flag), and
+// so do the colours of the Siri Remote overlay.
 (function () {
     'use strict';
     if (window.top !== window) { return; }
@@ -32,6 +33,10 @@
             '  --playerBackgroundFallback: ' + bga(0.97) + ' !important;',
             '  --fallbackMaterialBG: ' + bga(0.97) + ' !important;',
             '  --glassMaterialBackground: ' + mbg + ' !important;',
+            // Siri Remote overlay (siri-overlay.css), as in moOde's page.
+            '  --siri-overlay-fill: ' + bga(0.9) + ';',
+            '  --siri-overlay-text: ' + t.tx + ';',
+            '  --siri-overlay-shadow: ' + (t.dark ? 'rgba(0,0,0,.92)' : 'rgba(255,255,255,.85)') + ';',
             '}',
             'html, body { background-color: ' + bg + ' !important; }',
             '.navigation { background-color: ' + bg + ' !important; }',

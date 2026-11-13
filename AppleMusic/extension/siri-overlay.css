@@ -1,5 +1,6 @@
 /* SiriRemote on-screen feedback inside Apple Music. Same look as the overlay of
-   SiriRemote/moode-navigation/siri-remote-navigation.js (copied from there). */
+   SiriRemote/moode-navigation/siri-remote-navigation.js (copied from there).
+   Fill, text and shadow colours come from the moOde theme (theme.js). */
 #siri-browser-overlay {
     position: fixed;
     z-index: 2147483647;
@@ -20,7 +21,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255,255,255,.97);
+    color: var(--siri-overlay-text, rgba(255,255,255,.97));
     text-align: center;
     font-family: Lato, sans-serif;
     border: 1px solid rgba(255,255,255,.32);
@@ -50,7 +51,7 @@
 }
 #siri-browser-overlay .siri-overlay-glass,
 #siri-browser-overlay .siri-overlay-lens::before {
-    background-color: rgba(16,19,24,.90);
+    background-color: var(--siri-overlay-fill, rgba(16,19,24,.90));
     background-image:
         radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
         linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18));
@@ -93,11 +94,11 @@
     justify-content: center;
     gap: .04em;
     text-shadow:
-        -1px -1px 2px rgba(0,0,0,.92),
-         1px -1px 2px rgba(0,0,0,.92),
-        -1px  1px 2px rgba(0,0,0,.92),
-         1px  1px 2px rgba(0,0,0,.92),
-         0 2px 7px rgba(0,0,0,.78);
+        -1px -1px 2px var(--siri-overlay-shadow, rgba(0,0,0,.92)),
+         1px -1px 2px var(--siri-overlay-shadow, rgba(0,0,0,.92)),
+        -1px  1px 2px var(--siri-overlay-shadow, rgba(0,0,0,.92)),
+         1px  1px 2px var(--siri-overlay-shadow, rgba(0,0,0,.92)),
+         0 2px 7px var(--siri-overlay-shadow, rgba(0,0,0,.78));
     filter: drop-shadow(0 2px 9px rgba(0,0,0,.50));
 }
 #siri-browser-overlay .siri-overlay-label {

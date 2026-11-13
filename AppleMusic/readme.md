@@ -88,7 +88,7 @@ in from your computer through Chromium's remote inspector:
   <img width="350" alt="Apple Music album page on the moOde display" src="assets/applemusic-album.png" />
   <img width="350" alt="Apple Music full-screen player with the blurred cover backdrop" src="assets/applemusic-player.png" />
 </p>
-<sub>Apple Music on the 720 × 1280 Touch Display 2 with the Dark Glass theme. Left: an album page with the <b>‹ moOde</b> button and the mini player. Right: the full-screen player with moOde's blurred cover backdrop.</sub><br><br>
+<sub>Apple Music on the 720 × 1280 Touch Display 2 with a dark moOde theme. Left: an album page with the <b>‹ moOde</b> button and the mini player. Right: the full-screen player with moOde's blurred cover backdrop.</sub><br><br>
 
 ### Apple Music in moOde
 
@@ -124,8 +124,8 @@ MPD and Apple Music share the output device; whichever starts last wins:
 
 Apple Music follows the theme chosen in moOde (**Preferences → Appearance**):
 
-- light or dark Apple Music, like the theme's text colour (Dark Glass, Default
-  and other dark themes give a dark Apple Music);
+- light or dark Apple Music, like the theme's text colour (dark themes such as
+  Default give a dark Apple Music);
 - the theme's background colour for pages, navigation, mini player and
   full-screen player;
 - moOde's accent colour for Apple Music's buttons and highlights;
@@ -154,7 +154,7 @@ With the [SiriRemote](../SiriRemote/readme.md) project installed:
   Music while it is the source; other moOde views navigate as usual.
 - The remote's on-screen feedback (volume, play/pause, next, battery,
   shutdown countdown) is shown on top of Apple Music too, centred on the
-  cover of the full-screen player.
+  cover of the full-screen player, in the colours of the moOde theme.
 
 <img width="350" alt="Siri Remote volume overlay on top of Apple Music" src="assets/applemusic-remote-overlay.png" />
 <br><sub>The Siri Remote's volume overlay on top of Apple Music's full-screen player.</sub><br><br>
