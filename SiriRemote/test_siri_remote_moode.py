@@ -888,7 +888,7 @@ class X11OverlayTests(unittest.TestCase):
             0x606060,
         )
 
-    def test_overlay_colors_match_dark_glass_theme(self):
+    def test_overlay_colors_and_glass_parameters(self):
         self.assertEqual(remote.X11Overlay.MOODE_GREY, 0x101318)
         self.assertEqual(remote.X11Overlay.MOODE_TEXT, (240 / 255.0,) * 3)
         self.assertEqual(remote.X11Overlay.OVERLAY_OPACITY, 0.90)

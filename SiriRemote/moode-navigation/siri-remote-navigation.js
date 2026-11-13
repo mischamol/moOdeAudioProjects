@@ -86,7 +86,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: rgba(255,255,255,.97);
+            color: var(--siri-overlay-text, rgba(255,255,255,.97));
             text-align: center;
             font-family: Lato, sans-serif;
             border: 1px solid rgba(255,255,255,.32);
@@ -116,7 +116,7 @@
         }
         #siri-browser-overlay .siri-overlay-glass,
         #siri-browser-overlay .siri-overlay-lens::before {
-            background-color: rgba(16,19,24,.90);
+            background-color: var(--siri-overlay-fill, rgba(16,19,24,.90));
             background-image:
                 radial-gradient(ellipse at 18% 0, rgba(255,255,255,.15), transparent 38%),
                 linear-gradient(145deg, rgba(255,255,255,.055), rgba(8,10,14,.18));
@@ -159,11 +159,11 @@
             justify-content: center;
             gap: .04em;
             text-shadow:
-                -1px -1px 2px rgba(0,0,0,.92),
-                 1px -1px 2px rgba(0,0,0,.92),
-                -1px  1px 2px rgba(0,0,0,.92),
-                 1px  1px 2px rgba(0,0,0,.92),
-                 0 2px 7px rgba(0,0,0,.78);
+                -1px -1px 2px var(--siri-overlay-shadow, rgba(0,0,0,.92)),
+                 1px -1px 2px var(--siri-overlay-shadow, rgba(0,0,0,.92)),
+                -1px  1px 2px var(--siri-overlay-shadow, rgba(0,0,0,.92)),
+                 1px  1px 2px var(--siri-overlay-shadow, rgba(0,0,0,.92)),
+                 0 2px 7px var(--siri-overlay-shadow, rgba(0,0,0,.78));
             filter: drop-shadow(0 2px 9px rgba(0,0,0,.50));
         }
         #siri-browser-overlay .siri-overlay-label {
@@ -400,8 +400,24 @@
         return names[rawName] || rawName;
     }
 
+    // The overlay's fill and text follow the selected moOde theme
+    // (Preferences > Appearance); the glass rim and highlights stay neutral.
+    function applyThemeColors(overlay) {
+        let theme = null;
+        try { theme = THEME.json[SESSION.json.themename]; } catch (error) { theme = null; }
+        if (!theme || !theme.bg_color || !theme.tx_color) return;
+        const text = String(theme.tx_color).replace(/^#/, '');
+        const hex = text.length === 3 ? text.split('').map((c) => c + c).join('') : text;
+        const light = parseInt(hex.slice(0, 2), 16) >= 128;   // light text: dark theme
+        overlay.style.setProperty('--siri-overlay-fill', `rgba(${theme.bg_color}, .90)`);
+        overlay.style.setProperty('--siri-overlay-text', `#${hex}`);
+        overlay.style.setProperty('--siri-overlay-shadow',
+            light ? 'rgba(0,0,0,.92)' : 'rgba(255,255,255,.85)');
+    }
+
     function renderOverlay(text) {
         const overlay = ensureOverlay();
+        applyThemeColors(overlay);
         const content = overlayContent();
         content.replaceChildren();
         const normalized = String(text || '').trim().toUpperCase();
