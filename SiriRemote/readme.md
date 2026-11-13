@@ -235,8 +235,13 @@ Bluetooth callback.
   includes Apple Music. Within moOde, Menu/Back keeps its normal behaviour.
 - In moOde's Playback view, touchpad left/right stay Previous/Next for Apple
   Music while it is the source; in the other views they navigate as usual.
-- Touchpad swipes and the centre click do nothing while Apple Music covers
-  the screen.
+- On Apple Music's pages, touchpad swipes move a focus frame over Apple
+  Music's tiles, cards, buttons and songs, and a touchpad click plays the
+  focused album, playlist, station or song at once, like the Library
+  navigation in moOde. The daemon sends
+  them as `nav:` commands to `applemusic.php`; momentum batches are sent as
+  one command. In Apple Music's full-screen player, touchpad left/right are
+  Previous/Next and swipes do nothing.
 - At daemon start, the Playback synchronization click is skipped while Apple
   Music is on screen.
 

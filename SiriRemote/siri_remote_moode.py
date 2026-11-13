@@ -1174,15 +1174,29 @@ class X11ClickWorker:
                     return False
             except RuntimeError:
                 return False
-        if select_side:
+        player = visible and apple_music.player_open()
+        if select_side and (not visible or player):
+            # moOde's Playback view or Apple Music's full-screen player.
             if self.moode_worker is not None:
                 if action == "select-left":
                     self.moode_worker.submit("Touchpad left / Previous", self.previous_command)
                 else:
                     self.moode_worker.submit("Touchpad right / Next", self.next_command)
             return True
-        # Apple Music covers moOde: swipes and the centre click do nothing.
-        LOG.debug("Ignoring %s while Apple Music is on screen", item)
+        if player:
+            LOG.debug("Ignoring %s in Apple Music's player", item)
+            return True
+        # Apple Music's pages: the touchpad moves a focus frame over tiles,
+        # cards, buttons and songs, like moOde's Library; a click activates.
+        if item.startswith("navigation-batch:"):
+            moves = action.split(",")
+        else:
+            moves = [action]
+        moves = ["select" if m.startswith("select") else m.replace("continue-", "") for m in moves]
+        moves = [m for m in moves if m in ("left", "right", "up", "down", "select")]
+        if moves:
+            apple_music.control("nav:" + ",".join(moves[:16]))
+            LOG.info("Touchpad Apple Music navigation -> %s", ", ".join(moves))
         return True
 
     def _run(self) -> None:

@@ -637,8 +637,9 @@ class AppleMusicTests(unittest.TestCase):
                     handle.write('{"time": %f, "playing": true, "item": null}' % (remote.time.time() - 60))
                 self.assertFalse(bridge.active())
 
-    def test_visible_apple_music_takes_menu_and_touchpad_click_is_next(self):
+    def run_visible(self, player):
         apple_music = FakeAppleMusic(True, visible=True)
+        apple_music.player = player
         worker = FakeWorker()
         with mock.patch.dict(os.environ, {"SIRI_MENU_SCREEN_CLICK": "yes",
                                           "SIRI_LIBRARY_NAVIGATION": "yes"}, clear=False):
@@ -647,17 +648,27 @@ class AppleMusicTests(unittest.TestCase):
         clicker.moode_worker = worker
         with mock.patch.object(clicker, "_ensure_playback"), \
                 mock.patch.object(clicker, "_click") as click, \
-                mock.patch.object(clicker, "_emit_navigation_key") as key:
+                mock.patch.object(clicker, "_emit_navigation_key") as key, \
+                mock.patch.object(clicker, "_emit_navigation_keys") as keys:
             clicker.start()
-            clicker.submit()
             clicker.submit_navigation("select-right")
             clicker.submit_navigation("down")
+            clicker.submit_navigation_actions(["right", "continue-right"])
             clicker.stop()
             clicker.thread.join(1)
         click.assert_not_called()
         key.assert_not_called()
-        self.assertEqual(apple_music.windows, [])
-        self.assertEqual(apple_music.controls, ["player"])
+        keys.assert_not_called()
+        return apple_music, worker
+
+    def test_touchpad_navigates_apple_music_pages(self):
+        apple_music, worker = self.run_visible(player=False)
+        self.assertEqual(apple_music.controls, ["nav:select", "nav:down", "nav:right,right"])
+        self.assertEqual(worker.actions, [])
+
+    def test_touchpad_click_in_apple_music_player_is_next(self):
+        apple_music, worker = self.run_visible(player=True)
+        self.assertEqual(apple_music.controls, [])
         self.assertEqual(worker.actions, [("Touchpad right / Next", "next")])
 
 
