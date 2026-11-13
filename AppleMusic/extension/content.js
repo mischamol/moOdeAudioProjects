@@ -8,7 +8,7 @@
         var btn = document.createElement('button');
         btn.id = 'moode-return';
         btn.type = 'button';
-        btn.setAttribute('aria-label', 'Terug naar moOde');
+        btn.setAttribute('aria-label', 'Back to moOde');
         btn.textContent = '‹ moOde';
         btn.addEventListener('click', function (ev) {
             ev.preventDefault();

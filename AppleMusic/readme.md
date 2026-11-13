@@ -11,7 +11,7 @@ Connect, with cover, title and play/pause/next/previous buttons.
   <img width="350" alt="moOde Library menu with the Apple Music entry" src="assets/moode-library-menu.png" />
   <img width="350" alt="moOde renderer screen showing Apple Music" src="assets/moode-renderer-applemusic.png" />
 </p>
-<sub>Left: <b>Apple Music</b> in moOde's Library view menu. Right: moOde's renderer screen on a phone while Apple Music plays on the Pi, with previous, play/pause, next, show Apple Music and close buttons.</sub><br><br>
+<sub>Left: <b>Apple Music</b> in moOde's Library view menu. Right: moOde's renderer screen on a phone while Apple Music plays on the Pi, with previous, play/pause, next and close buttons.</sub><br><br>
 
 Audio from Apple Music is sent to moOde's `_audioout` ALSA device, so it follows
 the same output chain as MPD: with CamillaDSP enabled the sound passes through
@@ -56,8 +56,9 @@ Run the installer again after a moOde update that replaces `header.php`.
 moOde's **Configure → Renderers** gets an **Apple Music Webplayer** block,
 like AirPlay or Spotify Connect:
 
-- **Service** ON/OFF. Off closes Apple Music and removes it from the Library
+- **Service** ON/OFF (requires an Apple Music subscription and a local display). Off closes Apple Music and removes it from the Library
   menu; the launcher refuses to open it (`APPLEMUSIC_ENABLED=no`).
+- **Quality**: AAC 256 kbps only; Apple Music Web offers no lossless.
 - **Account**: *Signed in* or *Not signed in*, as reported by Apple Music
   (known once Apple Music has been opened since the Pi started).
 - **Sign in** opens Apple's own sign-in window on the moOde display; **Sign
@@ -123,7 +124,6 @@ the renderer screen:
 | Button | Action |
 |---|---|
 | ⏮ ⏯ ⏭ | previous (restarts the song after 3 s) / play-pause / next |
-| ↗ | show Apple Music on the Pi's screen |
 | ✕ | close Apple Music |
 
 The Apple Music extension reports what plays once a second to

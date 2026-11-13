@@ -14,7 +14,7 @@ from pathlib import Path
 
 BEGIN = "<!-- BEGIN APPLE MUSIC -->"
 END = "<!-- END APPLE MUSIC -->"
-ASSET_VERSION = 9
+ASSET_VERSION = 17
 BODY = [f'<script src="js/applemusic.js?v={ASSET_VERSION}" defer></script>']
 ANCHOR = re.compile(r'^\s*<script src="js/(?:main\.min|scripts-panels)\.js(?:\?[^"]*)?" defer></script>\s*$')
 CONFIG_ANCHOR = re.compile(r'^\s*<script src="js/(?:config\.min|scripts-configs)\.js(?:\?[^"]*)?" defer></script>\s*$')

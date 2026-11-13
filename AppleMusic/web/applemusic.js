@@ -41,14 +41,14 @@
         // Close the open dropdown menu, like the native view buttons do.
         var open = document.querySelectorAll('.dropdown.open, .btn-group.open');
         for (var i = 0; i < open.length; i++) { open[i].classList.remove('open'); }
-        toast('Apple Music openen…');
+        toast('Opening Apple Music…');
         fetch('applemusic.php?cmd=open', { method: 'POST', cache: 'no-store' })
             .then(function (r) { return r.json(); })
             .then(function (res) {
-                if (!res.ok) { toast('Apple Music kon niet starten'); return; }
-                if (!isLocalDisplay()) { toast('Apple Music staat open op het moOde-scherm'); }
+                if (!res.ok) { toast('Apple Music could not start'); return; }
+                if (!isLocalDisplay()) { toast('Apple Music is open on the moOde display'); }
             })
-            .catch(function () { toast('Apple Music kon niet starten'); });
+            .catch(function () { toast('Apple Music could not start'); });
     }
 
     function addButton() {
@@ -74,8 +74,7 @@
     // ---- Apple Music as a moOde renderer ------------------------------------
     // While Apple Music runs, moOde shows it like AirPlay or Spotify Connect:
     // moOde's own renderer screen (#inpsrc-indicator) with cover, title and
-    // the output format, plus play/pause/next/previous, "show on the Pi
-    // screen" and "close" buttons. Phones and computers only: the Pi's own
+    // the output format, plus play/pause/next/previous and "close" buttons. Phones and computers only: the Pi's own
     // display has Apple Music's player itself, and "‹ moOde" there returns to
     // the normal moOde interface.
     var POLL_MS = 2000;
@@ -100,11 +99,10 @@
 
     function controlsHtml(playing) {
         return '<span id="inpsrc-msg-text">Apple Music Active</span>' +
-            button('prev', 'fa-solid fa-sharp fa-backward-step', 'Vorige') +
-            button('toggle', 'fa-solid fa-sharp ' + (playing ? 'fa-pause' : 'fa-play'), playing ? 'Pauze' : 'Afspelen') +
-            button('next', 'fa-solid fa-sharp fa-forward-step', 'Volgende') +
-            button('show', 'fa-solid fa-sharp fa-arrow-up-right-from-square', 'Apple Music tonen') +
-            button('close', 'fa-regular fa-sharp fa-xmark', 'Apple Music sluiten');
+            button('prev', 'fa-solid fa-sharp fa-backward-step', 'Previous') +
+            button('toggle', 'fa-solid fa-sharp ' + (playing ? 'fa-pause' : 'fa-play'), playing ? 'Pause' : 'Play') +
+            button('next', 'fa-solid fa-sharp fa-forward-step', 'Next') +
+            button('close', 'fa-regular fa-sharp fa-xmark', 'Close Apple Music');
     }
 
     function hideRenderer() {
@@ -151,7 +149,7 @@
         var toggle = document.querySelector('.applemusic-ctl[data-applemusic="toggle"] i');
         if (toggle) {
             toggle.className = 'fa-solid fa-sharp ' + (st.playing ? 'fa-pause' : 'fa-play');
-            toggle.parentNode.setAttribute('aria-label', st.playing ? 'Pauze' : 'Afspelen');
+            toggle.parentNode.setAttribute('aria-label', st.playing ? 'Pause' : 'Play');
         }
     }
 
@@ -170,10 +168,10 @@
         var url, msg = null;
         if (action === 'show') {
             url = 'applemusic.php?cmd=show';
-            if (!isLocalDisplay()) { msg = 'Apple Music staat open op het moOde-scherm'; }
+            if (!isLocalDisplay()) { msg = 'Apple Music is open on the moOde display'; }
         } else if (action === 'close') {
             url = 'applemusic.php?cmd=close';
-            msg = 'Apple Music gesloten';
+            msg = 'Apple Music closed';
         } else {
             url = 'applemusic.php?cmd=control&action=' + encodeURIComponent(action);
         }
@@ -184,7 +182,7 @@
                 if (action === 'close') { render(null); }
                 setTimeout(poll, 700);
             })
-            .catch(function () { toast('Apple Music reageert niet'); });
+            .catch(function () { toast('Apple Music does not respond'); });
     }
 
     document.addEventListener('click', function (ev) {
@@ -217,18 +215,19 @@
             '    <label class="toggle-radio">ON </label>' +
             '    <label class="toggle-radio">OFF</label>' +
             '  </div>' +
-            '  <span class="config-help-static">Apple Music Web on the local display, with moOde\'s ' +
-            '  output chain (CamillaDSP). Requires an Apple Music subscription. When off, Apple Music ' +
-            '  is closed and removed from the Library menu.</span>' +
+            '  <span class="config-help-static">Apple Music Web player on the local display. Requires an ' +
+            '  Apple Music subscription and a local display.</span>' +
             '</div>' +
+            '<label class="control-label">Quality</label>' +
+            '<div class="controls"><span style="display:inline-block;line-height:1.4;padding-top:4px;' +
+            'margin-bottom:var(--config-ctl-margin-bottom, 1em)">AAC 256 kbps only (no lossless in Apple Music Web)</span></div>' +
             '<label class="control-label">Account</label>' +
-            '<div class="controls"><span id="applemusic-account" style="display:inline-block;line-height:29px;' +
+            '<div class="controls"><span id="applemusic-account" style="display:inline-block;line-height:1.4;padding-top:4px;' +
             'margin-bottom:var(--config-ctl-margin-bottom, 1em)">…</span></div>' +
             '<div class="controls">' +
             '  <button type="button" class="btn btn-medium btn-primary config-btn" id="applemusic-signin">Sign in</button>' +
             '  <span class="config-btn-after">Opens Apple\'s sign-in window on the moOde display. Type with a ' +
-            '  USB keyboard on the Pi, or through the remote inspector (see the AppleMusic readme). ' +
-            '  Your password does not pass through moOde.</span>' +
+            '  USB keyboard on the Pi. Your password does not pass through moOde.</span>' +
             '</div>' +
             '<div class="controls">' +
             '  <button type="button" class="btn btn-medium btn-primary config-btn" id="applemusic-signout">Sign out</button>' +
