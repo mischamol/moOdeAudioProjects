@@ -90,7 +90,8 @@
         }
     }
     // When MPD takes over, moOde restarts Chromium's audio process to free
-    // the device; Apple Music then shows "Er is een fout opgetreden". Close it.
+    // the device; Apple Music then shows an error message ("An error
+    // occurred"). Close it.
     function dismissError() {
         [500, 1500, 3000, 6000].forEach(function (ms) {
             setTimeout(function () {

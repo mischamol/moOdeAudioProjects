@@ -288,5 +288,5 @@ case "${1:-}" in
     enable)  set_enabled yes ;;
     disable) set_enabled no ;;
     enabled) [ "$APPLEMUSIC_ENABLED" = no ] && echo no || echo yes ;;
-    *) echo "Usage: sudo moode-applemusic open [--debug] | hide | show | close | toggle | status | enable | disable" >&2; exit 2 ;;
+    *) echo "Usage: sudo moode-applemusic open [--debug] | hide | show | close | toggle | status | enable | disable | enabled | release-audio | after-close | thaw-moode" >&2; exit 2 ;;
 esac

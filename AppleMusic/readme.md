@@ -101,7 +101,7 @@ starts the search or submits the sign-in form; ⌄ hides the keyboard.
   the mini player's own buttons.
 - **Swipe down** on the full-screen player closes it, as in the phone app
   (Apple Music Web only offers this gesture on phones).
-- Command line: `sudo moode-applemusic open | hide | show | close | toggle | status | enable | disable`.
+- Command line: see [Command line](#command-line) below.
 
 <p>
   <img width="350" alt="Apple Music album page on the moOde display" src="assets/applemusic-album.png" />
@@ -184,6 +184,24 @@ With the [SiriRemote](../SiriRemote/readme.md) project installed:
 
 <img width="350" alt="Siri Remote volume overlay on top of Apple Music" src="assets/applemusic-remote-overlay.png" />
 <br><sub>The Siri Remote's volume overlay on top of Apple Music's full-screen player.</sub><br><br>
+
+## Command line
+
+`sudo moode-applemusic <command>`:
+
+| Command | Action |
+|---|---|
+| `open` | open Apple Music on the local display, or show it when it runs hidden |
+| `open --debug` | the same, with Chromium's remote debugging on port 9222 (localhost only), for troubleshooting with `chrome://inspect` or `edge://inspect` through an SSH tunnel (`ssh -L 9222:localhost:9222 <user>@moode.local`); close Apple Music first, or the running instance is shown instead |
+| `hide` / `show` | hide Apple Music (music keeps playing) or show it again |
+| `close` | close Apple Music |
+| `toggle` | open, hide or show, depending on the current state |
+| `status` | print `running`, `hidden` or `stopped` |
+| `enable` / `disable` | turn the service on or off (the Renderers page switch) |
+| `enabled` | print `yes` or `no` |
+| `release-audio` | restart Chromium's audio process to free the audio device (used when MPD takes over, see above) |
+| `after-close` | clean-up after Apple Music closed: run by systemd, not meant to be called by hand |
+| `thaw-moode` | resume moOde's browser if `APPLEMUSIC_FREEZE_MOODE` paused it |
 
 ## Volume
 
