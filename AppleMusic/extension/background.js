@@ -20,6 +20,11 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
             });
         return false;
     }
+    if (msg.type === 'moode-osk') {
+        // moOde's "Popup keyboard" setting (osk.js).
+        request('cmd=settings').then(sendResponse).catch(function () { sendResponse(null); });
+        return true;
+    }
     if (msg.type === 'moode-theme') {
         request('cmd=theme').then(sendResponse).catch(function () { sendResponse(null); });
         return true;

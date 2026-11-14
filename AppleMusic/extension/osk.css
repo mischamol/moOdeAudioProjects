@@ -1,0 +1,42 @@
+/* On-screen keyboard (osk.js), for moOde's touch display. */
+#moode-osk {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2147483646;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 4px 10px;
+    background: rgba(24, 24, 26, .97);
+    border-top: 1px solid rgba(255, 255, 255, .12);
+    font: 500 18px/1 -apple-system, "Helvetica Neue", Arial, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+#moode-osk.moode-osk-visible { display: flex; }
+.moode-osk-row { display: flex; gap: 5px; }
+.moode-osk-key {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .13);
+    color: #eee;
+    cursor: pointer;
+}
+.moode-osk-key:active { background: rgba(255, 255, 255, .3); }
+.moode-osk-back, .moode-osk-shift, .moode-osk-sym, .moode-osk-abc, .moode-osk-hide {
+    background: rgba(255, 255, 255, .07);
+}
+.moode-osk-shift.moode-osk-active { background: rgba(255, 255, 255, .3); }
+.moode-osk-space { flex-grow: 4; }
+.moode-osk-sym, .moode-osk-abc, .moode-osk-enter { flex-grow: 1.6; font-size: 15px; }
+.moode-osk-enter { background: var(--moode-accent, #d35400); color: #fff; }
+/* Leave room below the page so the focused field stays above the keyboard. */
+html.moode-osk-open #scrollable-page { padding-bottom: 300px; }

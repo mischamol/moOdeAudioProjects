@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "moOde Apple Music bridge",
-  "version": "2.3",
+  "version": "2.4",
   "description": "Return button, moOde theme, renderer and remote integration, and lighter Apple Music rendering for the Raspberry Pi.",
   "permissions": [
     "declarativeNetRequest"
@@ -50,6 +50,21 @@
         "siri-overlay.css"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://music.apple.com/*",
+        "https://*.music.apple.com/*",
+        "https://idmsa.apple.com/*"
+      ],
+      "js": [
+        "osk.js"
+      ],
+      "css": [
+        "osk.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "host_permissions": [

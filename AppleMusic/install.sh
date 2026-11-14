@@ -38,7 +38,7 @@ fi
 # 2. Launcher, Chromium extension and configuration.
 install -o root -g root -m 0755 "$script_dir/moode-applemusic" "$launcher"
 mkdir -p "$extension_dir"
-for f in manifest.json rules.json background.js content.js content.css nowebgl.js volume.js nowplaying.js idle.js theme.js siri-overlay.js siri-overlay.css applenav.js; do
+for f in manifest.json rules.json background.js content.js content.css nowebgl.js volume.js nowplaying.js idle.js theme.js siri-overlay.js siri-overlay.css applenav.js osk.js osk.css; do
     install -o root -g root -m 0644 "$script_dir/extension/$f" "$extension_dir/$f"
 done
 if [ ! -f "$config" ]; then

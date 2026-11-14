@@ -245,6 +245,15 @@ function clean_item($item): ?array {
     ];
 }
 
+// moOde's "Popup keyboard" setting (Configure > Peripherals). moOde keeps it
+// only in its shared PHP session, not in the database.
+function moode_popup_keyboard(): bool {
+    $id = moode_cfg(['sessionid'])['sessionid'] ?? '';
+    if (!preg_match('/^[a-zA-Z0-9,-]+$/', $id)) { return false; }
+    $sess = @file_get_contents('/var/local/php/sess_' . $id);
+    return $sess !== false && preg_match('/(^|;|\})on_screen_kbd\|s:2:"On"/', $sess) === 1;
+}
+
 // moOde's current theme, for Apple Music's colours.
 function theme_state(): array {
     $c = moode_cfg(['themename', 'accent_color', 'cover_backdrop', 'cover_blur', 'cover_scale', 'alphablend']);
@@ -308,6 +317,7 @@ if ($cmd === 'settings') {
         // Known while Apple Music runs, and remembered after it closes.
         'signed_in' => is_array($auth) ? (bool)$auth['signed_in'] : null,
         'checked' => is_array($auth) ? (int)$auth['time'] : null,
+        'osk' => moode_popup_keyboard(),
     ]);
     exit;
 }

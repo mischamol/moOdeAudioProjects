@@ -70,22 +70,19 @@ like AirPlay or Spotify Connect:
 
 ## Sign in (once)
 
-Choose **Sign in** on the Renderers page (or **Log in** in Apple Music). The
-local display has no keyboard: either plug in a USB keyboard once, or type
-from your computer through Chromium's remote inspector:
+Choose **Sign in** on the Renderers page (or **Log in** in Apple Music), and
+type with the on-screen keyboard (below) or a USB keyboard.
 
-1. Open Apple Music on the Pi with remote debugging, and tunnel the port:
+### On-screen keyboard
 
-   ```sh
-   ssh -L 9222:localhost:9222 mischa@moode.local "sudo moode-applemusic close; sudo moode-applemusic open --debug; sleep 1800"
-   ```
+With moOde's **Popup keyboard** on (**Configure → Peripherals**), Apple Music
+on the touch display gets an on-screen keyboard as well: it appears when a
+text field gets focus, in Apple Music's search and in Apple's sign-in window,
+and types straight into that field (nothing passes through moOde). Enter
+starts the search or submits the sign-in form; ⌄ hides the keyboard.
 
-2. On the computer open `edge://inspect` or `chrome://inspect`, click
-   **Configure…**, add `localhost:9222`, then click **inspect** below
-   *Apple Music*. The screencast in DevTools accepts mouse and keyboard
-   input: click **Log in** and sign in with your Apple Account.
-3. Close Apple Music with **‹ moOde** and stop the ssh command. Later starts
-   from the moOde menu run without remote debugging.
+<img width="350" alt="On-screen keyboard in Apple Music's search" src="assets/applemusic-keyboard.png" />
+<br><sub>The on-screen keyboard in Apple Music's search.</sub><br><br>
 
 ## Use
 
