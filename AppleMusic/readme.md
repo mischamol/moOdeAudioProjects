@@ -310,6 +310,11 @@ Chromium keeps running a cached version of the extension's service worker.
 ## Limitations
 
 - Music videos and animated covers do not play (blocked for performance).
+- Broadcast radio stations that Apple Music gets from TuneIn (for example
+  NPO Radio 2) cannot be played in Apple Music Web: the station page has no
+  play button and MusicKit reports `CONTENT_UNSUPPORTED`. Apple's own radio
+  (Apple Music 1 and other live shows) and personal, artist and song stations
+  do play. Play broadcast stations in moOde's own Radio view instead.
 
 - Apple Music Web streams AAC 256 kbps (MusicKit's "HIGH" quality, one
   whole file per song, not adaptive); lossless and Dolby Atmos are not
