@@ -102,7 +102,146 @@
             button('prev', 'fa-solid fa-sharp fa-backward-step', 'Previous') +
             button('toggle', 'fa-solid fa-sharp ' + (playing ? 'fa-pause' : 'fa-play'), playing ? 'Pause' : 'Play') +
             button('next', 'fa-solid fa-sharp fa-forward-step', 'Next') +
+            '<span id="applemusic-volbtn" style="display:none">' +
+            button('volume', 'fa-regular fa-sharp fa-volume', 'Volume') + '</span>' +
+            button('audioinfo', 'fa-regular fa-sharp fa-music', 'Audio info') +
             button('close', 'fa-regular fa-sharp fa-xmark', 'Close Apple Music');
+    }
+
+    // ---- Volume ----------------------------------------------------------------
+    // A popup like moOde's own volume popup, for CamillaDSP's main volume:
+    // the same volume the remote and Apple Music's slider set.
+    var VOL_CSS =
+        '#applemusic-volume-modal{width:30em;max-width:94vw}' +
+        '#applemusic-volume-modal .modal-body{box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:1em;padding:1.5em 1em}' +
+        '#applemusic-volume-modal .btn{min-width:3em;font-size:1.1em}' +
+        '#applemusic-volslider{-webkit-appearance:none;appearance:none;flex:1 1 auto;min-width:6em;height:.5em;margin:0;' +
+        'border-radius:.25em;outline:none;cursor:pointer;background:linear-gradient(to right,var(--accentxts,#2196f3) 0,' +
+        'var(--accentxts,#2196f3) var(--p,0%),rgba(128,128,128,.35) var(--p,0%),rgba(128,128,128,.35) 100%)}' +
+        '#applemusic-volslider::-webkit-slider-thumb{-webkit-appearance:none;width:1.6em;height:1.6em;border-radius:50%;' +
+        'border:none;background:var(--accentxts,#2196f3)}' +
+        '#applemusic-volslider::-moz-range-thumb{width:1.6em;height:1.6em;border-radius:50%;border:none;background:var(--accentxts,#2196f3)}' +
+        '#applemusic-volslider::-moz-range-track{background:transparent}' +
+        '#applemusic-vollevel{min-width:2.2em;text-align:right;font-size:1.6em;font-variant-numeric:tabular-nums}';
+    (function () {
+        var s = document.createElement('style');
+        s.id = 'applemusic-style';
+        s.textContent = VOL_CSS;
+        (document.head || document.documentElement).appendChild(s);
+    }());
+    var VOL_STEP = 1;
+    var vol = { bridge: false, level: 0, muted: false };
+    var volUntil = 0;      // ignore polled levels while the user is changing it
+    var volTimer = null, volPending = null, volBusy = false;
+
+    function volumeModal() {
+        var modal = document.getElementById('applemusic-volume-modal');
+        if (modal) { return modal; }
+        modal = document.createElement('div');
+        modal.id = 'applemusic-volume-modal';
+        modal.className = 'modal hide';
+        modal.setAttribute('tabindex', '-1');
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML =
+            '<div class="modal-header"><button aria-label="Close" type="button" class="close" data-dismiss="modal">&times;</button>' +
+            '<h3>Apple Music volume</h3></div>' +
+            '<div class="modal-body">' +
+            '<button type="button" class="btn applemusic-ctl" data-applemusic="vol-down" aria-label="Volume down">' +
+            '<i class="fa-regular fa-sharp fa-minus"></i></button>' +
+            '<input id="applemusic-volslider" type="range" min="0" max="100" step="1" aria-label="Volume">' +
+            '<button type="button" class="btn applemusic-ctl" data-applemusic="vol-up" aria-label="Volume up">' +
+            '<i class="fa-regular fa-sharp fa-plus"></i></button>' +
+            '<span id="applemusic-vollevel"></span></div>' +
+            '<div class="modal-footer"><button aria-label="Close" class="btn singleton" data-dismiss="modal">Close</button></div>';
+        document.body.appendChild(modal);
+        return modal;
+    }
+    function showLevel(level, muted) {
+        var slider = document.getElementById('applemusic-volslider');
+        if (slider) {
+            slider.value = level;
+            slider.style.setProperty('--p', level + '%');
+        }
+        var label = document.getElementById('applemusic-vollevel');
+        if (label) { label.textContent = muted ? 'mute' : String(level); }
+    }
+    function showVolume() {
+        var btn = document.getElementById('applemusic-volbtn');
+        if (btn) {
+            btn.style.display = vol.bridge ? '' : 'none';
+            var icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = 'fa-regular fa-sharp ' + (vol.muted || vol.level === 0 ? 'fa-volume-xmark' :
+                    vol.level < 34 ? 'fa-volume-low' : vol.level < 67 ? 'fa-volume' : 'fa-volume-high');
+            }
+        }
+        if (Date.now() > volUntil) { showLevel(vol.level, vol.muted); }
+    }
+    // Send the newest level; while one request runs, only the last level waits.
+    function sendVolume(level) {
+        volPending = level;
+        if (volBusy) { return; }
+        volBusy = true;
+        var l = volPending;
+        volPending = null;
+        fetch('applemusic.php?cmd=volume&level=' + l, { method: 'POST', cache: 'no-store' })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (res && typeof res.level === 'number') { vol = res; }
+                else if (res && res.error) { toast(res.error); }
+            })
+            .catch(function () { toast('Volume could not be set'); })
+            .then(function () {
+                volBusy = false;
+                if (volPending !== null) { sendVolume(volPending); } else { showVolume(); }
+            });
+    }
+    function setVolume(level, immediate) {
+        level = Math.max(0, Math.min(100, Math.round(level)));
+        volUntil = Date.now() + 2500;
+        vol.level = level;
+        vol.muted = false;
+        showLevel(level, false);
+        clearTimeout(volTimer);
+        if (immediate) { sendVolume(level); } else { volTimer = setTimeout(function () { sendVolume(level); }, 120); }
+    }
+    document.addEventListener('input', function (ev) {
+        if (ev.target && ev.target.id === 'applemusic-volslider') { setVolume(+ev.target.value, false); }
+    }, true);
+    document.addEventListener('change', function (ev) {
+        if (ev.target && ev.target.id === 'applemusic-volslider') { setVolume(+ev.target.value, true); }
+    }, true);
+
+    // ---- Audio info (moOde's own dialog, with Apple Music as the source) -------
+    var lastState = null;
+    function audioInfo() {
+        if (!window.jQuery || !$('#audioinfo-modal').length) { return; }
+        if (!(window.UI && UI.mobile)) { $('#audioinfo-modal').css('min-width', '45em'); }
+        $('#audioinfo-modal .modal-body').load('audioinfo.php', function () {
+            $('#audioinfo-tabs').css('display', 'none');
+            patchAudioInfo(lastState || {});
+            $('#audioinfo-modal').removeClass('track playback').addClass('playback').modal('show');
+        });
+    }
+    // moOde's dialog describes MPD; replace the source rows and hide what only
+    // applies to MPD, as moOde does for its own renderers.
+    function patchAudioInfo(st) {
+        var rows = {};
+        $('#audioinfo li').each(function () {
+            rows[$(this).find('.left').first().text().trim()] = $(this);
+        });
+        var set = function (name, text) { if (rows[name]) { rows[name].find('.right').first().text(text); } };
+        var playing = !!st.playing;
+        set('Source', 'Apple Music Web' + (st.preview ? ' (preview, not signed in)' : ''));
+        set('Source format', 'AAC ' + (st.bitrate || 256) + ' kbps, 44.1 kHz, Stereo');
+        set('Decoded to', playing ? 'PCM 32 bit float 44.1 kHz, Stereo (Chromium)' : 'Not playing');
+        if (rows['Audio chain']) {
+            var chain = rows['Audio chain'].find('.right').first();
+            chain.html(chain.html().replace(/^\s*MPD(\s*&rarr;|\s*→)?/, 'Apple Music &rarr;'));
+        }
+        ['Resampling', 'Quality', 'Selective', 'Polarity invert', 'Crossfade', 'Replaygain', 'Normalize vol']
+            .forEach(function (name) { if (rows[name]) { rows[name].addClass('off'); } });
     }
 
     function hideRenderer() {
@@ -117,6 +256,8 @@
         if (!canRender()) { return; }
         var item = st && st.app !== 'stopped' ? st.item : null;
         if (!item || otherRendererActive()) { hideRenderer(); return; }
+        lastState = st;
+        if (st.volume && Date.now() > volUntil) { vol = st.volume; }
 
         // moOde may have reset its renderer screen (e.g. after an MPD event).
         var visible = $('#inpsrc-indicator').css('display') === 'block' && $('.applemusic-ctl').length > 0;
@@ -134,7 +275,8 @@
             cover_url: item.artwork || (typeof DEFAULT_ALBUM_COVER === 'string' ? DEFAULT_ALBUM_COVER : ''),
             // moOde clears its "… Active" text once metadata is shown; the
             // format badge under the title says which source plays.
-            sformat: '<i class="fa-brands fa-apple"></i> Apple Music &middot; AAC 256 kbps',
+            sformat: '<i class="fa-brands fa-apple"></i> Apple Music &middot; ' +
+                (st.preview ? 'Preview' : 'AAC ' + (st.bitrate || 256) + ' kbps'),
             oformat: st.oformat || (st.playing ? '' : 'Not playing'),
             duration: Math.round(item.duration || 0),
             playstate: st.playing ? 'Resume' : 'Pause'
@@ -151,6 +293,7 @@
             toggle.className = 'fa-solid fa-sharp ' + (st.playing ? 'fa-pause' : 'fa-play');
             toggle.parentNode.setAttribute('aria-label', st.playing ? 'Pause' : 'Play');
         }
+        showVolume();
     }
 
     var polling = false;
@@ -165,6 +308,24 @@
     }
 
     function control(action) {
+        if (action === 'volume') {
+            var modal = volumeModal();
+            showLevel(vol.level, vol.muted);
+            window.jQuery(modal).modal('show');
+            // Fresh level: the remote or the knob may have changed it.
+            fetch('applemusic.php?cmd=volume', { cache: 'no-store' })
+                .then(function (r) { return r.json(); })
+                .then(function (res) { if (res && typeof res.level === 'number' && Date.now() > volUntil) { vol = res; showVolume(); } })
+                .catch(function () { /* polled again shortly */ });
+            return;
+        }
+        if (action === 'vol-down' || action === 'vol-up') {
+            var slider = document.getElementById('applemusic-volslider');
+            var now = slider ? +slider.value : vol.level;
+            setVolume(now + (action === 'vol-up' ? VOL_STEP : -VOL_STEP), true);
+            return;
+        }
+        if (action === 'audioinfo') { audioInfo(); return; }
         var url, msg = null;
         if (action === 'show') {
             url = 'applemusic.php?cmd=show';

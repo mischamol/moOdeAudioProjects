@@ -84,8 +84,15 @@ if ! cmp -s "$temporary" "$header"; then
     cp -a -- "$header" "$backup_dir/header.php"
     cat "$temporary" > "$header"
     echo "Patched moOde header; backup: $backup_dir/header.php"
-    # Reload moOde's display so the menu entry appears.
+    # Reload moOde's display so the menu entry appears. That also ends Apple
+    # Music (it runs on the same display); open it again afterwards.
+    am_was_running=no
+    systemctl is-active --quiet moode-applemusic && am_was_running=yes
     systemctl try-restart localdisplay.service >/dev/null 2>&1 || true
+    if [ "$am_was_running" = yes ]; then
+        (sleep 8; "$launcher" open >/dev/null 2>&1) &
+        echo "Apple Music was open: reopening it after the display restart."
+    fi
 else
     echo "moOde header already contains the Apple Music include."
 fi

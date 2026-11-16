@@ -70,6 +70,8 @@
             authorized: !!mk.isAuthorized,   // signed in (moOde Renderers page)
             view: view(),
             playing: !!mk.isPlaying,
+            // Stream quality MusicKit picks: 256 (HIGH) or 64 kbps (STANDARD).
+            bitrate: typeof mk.bitrate === 'number' ? mk.bitrate : null,
             item: it ? {
                 id: it.id || '',
                 title: it.title || '',

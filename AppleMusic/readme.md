@@ -11,7 +11,7 @@ Connect, with cover, title and play/pause/next/previous buttons.
   <img width="350" alt="moOde Library menu with the Apple Music entry" src="assets/moode-library-menu.png" />
   <img width="350" alt="moOde renderer screen showing Apple Music" src="assets/moode-renderer-applemusic.png" />
 </p>
-<sub>Left: <b>Apple Music</b> in moOde's Library view menu. Right: moOde's renderer screen on a phone while Apple Music plays on the Pi, with previous, play/pause, next and close buttons.</sub><br><br>
+<sub>Left: <b>Apple Music</b> in moOde's Library view menu. Right: moOde's renderer screen on a phone while Apple Music plays on the Pi, with previous, play/pause, next, volume, audio info and close buttons.</sub><br><br>
 
 Audio from Apple Music is sent to moOde's `_audioout` ALSA device, so it follows
 the same output chain as MPD: with CamillaDSP enabled the sound passes through
@@ -114,14 +114,29 @@ starts the search or submits the sign-in form; ⌄ hides the keyboard.
 While Apple Music runs, moOde on phones and computers shows it on moOde's
 renderer screen, the same screen moOde uses for AirPlay and Spotify Connect:
 cover, artist, title, album, an *Apple Music · AAC 256 kbps* badge and the
-output format. The Pi's own display does not: there Apple Music's own player
-is the player, and **‹ moOde** leads to the normal moOde interface. Buttons of
-the renderer screen:
+output format. The bitrate in the badge is the one Apple Music's player
+(MusicKit) actually uses; *Preview* means Apple Music is not signed in and
+only plays 30-second previews. The Pi's own display does not show this
+screen: there Apple Music's own player is the player, and **‹ moOde** leads
+to the normal moOde interface. Buttons of the renderer screen:
 
 | Button | Action |
 |---|---|
 | ⏮ ⏯ ⏭ | previous (restarts the song after 3 s) / play-pause / next |
+| 🔈 | volume popup: −, slider, + (steps of 1) and the level. Sets CamillaDSP's main volume, the same volume Apple Music's slider and the remote set. Only shown while CamillaDSP is active. |
+| ♫ | moOde's *Audio info* dialog with Apple Music as the source: AAC bitrate, decoding, output format, audio chain, CamillaDSP configuration, volume and audio device |
 | ✕ | close Apple Music |
+
+moOde itself has no volume control on its AirPlay or Spotify screens; the
+Apple Music screen has one because the volume is set through CamillaDSP
+(see [Volume](#volume)). There is one volume, so the popup, Apple Music's
+slider on the Pi and the remote always show the same level.
+
+<p>
+  <img width="350" alt="Apple Music volume popup on moOde's renderer screen" src="assets/moode-renderer-volume.png" />
+  <img width="350" alt="moOde Audio info for Apple Music" src="assets/moode-renderer-audioinfo.png" />
+</p>
+<sub>On a phone. Left: the volume popup. Right: moOde's <i>Audio info</i> while Apple Music plays.</sub><br><br>
 
 The Apple Music extension reports what plays once a second to
 `applemusic.php` (state in `/dev/shm`, not on the SD card). That request
@@ -296,8 +311,10 @@ Chromium keeps running a cached version of the extension's service worker.
 
 - Music videos and animated covers do not play (blocked for performance).
 
-- Apple Music Web streams AAC 256 kbps; lossless is not available in the web
-  player.
+- Apple Music Web streams AAC 256 kbps (MusicKit's "HIGH" quality, one
+  whole file per song, not adaptive); lossless and Dolby Atmos are not
+  available in the web player. MusicKit can also choose 64 kbps
+  ("STANDARD"); the renderer screen and Audio info show which one plays.
 - Apple Music uses an extra ~350–600 MB RAM while running, also in the
   background. Close it with ✕ on moOde's renderer screen (phone or
   computer) or `sudo moode-applemusic close` when you no longer need it.

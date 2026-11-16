@@ -5,7 +5,7 @@
  * GET  applemusic.php?cmd=status              running|hidden|stopped
  * GET  applemusic.php?cmd=volume              CamillaDSP volume for the Apple Music slider
  * POST applemusic.php?cmd=volume&level=0..100 set CamillaDSP volume directly
- * GET  applemusic.php?cmd=state               now playing, for the moOde UI
+ * GET  applemusic.php?cmd=state               now playing, stream bitrate and volume, for the moOde UI
  * GET  applemusic.php?cmd=settings            service on/off and sign-in state (Renderers page)
  * POST applemusic.php?cmd=enable|disable      turn the service on or off
  * POST applemusic.php?cmd=signin|signout      Apple's sign-in/out on the Pi's screen
@@ -216,6 +216,9 @@ function app_state(): array {
         'playing' => !empty($s['playing']),
         'item' => $item,
         'oformat' => !empty($s['playing']) ? output_format() : 'Not playing',
+        'bitrate' => $s['bitrate'] ?? null,
+        // Not signed in: Apple Music only plays 30-second previews.
+        'preview' => isset($s['authorized']) && !$s['authorized'],
     ];
 }
 
@@ -302,7 +305,10 @@ if (!in_array($cmd, $allowed, true)) {
 $post = $_SERVER['REQUEST_METHOD'] === 'POST';
 
 if ($cmd === 'state') {
-    echo json_encode(app_state());
+    $st = app_state();
+    // The renderer screen's volume control.
+    if ($st['app'] !== 'stopped') { $st['volume'] = volume_state(); }
+    echo json_encode($st);
     exit;
 }
 
@@ -356,6 +362,8 @@ if ($cmd === 'sync') {
     $prev = read_state();
     $playing = !empty($in['playing']);
     $state = ['time' => microtime(true), 'ready' => !empty($in['ready']), 'playing' => $playing, 'item' => clean_item($in['item'] ?? null),
+        'bitrate' => is_numeric($in['bitrate'] ?? null) ? (int)$in['bitrate'] : null,
+        'authorized' => !empty($in['authorized']),
         // Full-screen player open / on the Home page (remote Menu/Back).
         'view' => ['player' => !empty($in['view']['player']), 'home' => !empty($in['view']['home'])]];
     if (isset($in['authorized']) && !empty($in['ready'])) {
