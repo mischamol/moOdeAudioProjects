@@ -104,10 +104,23 @@
         // into view, Apple Music renders them and the Pi is busy for a while.
         requestAnimationFrame(function () {
             if (current !== el) { return; }
-            // Horizontally within its shelf (Apple snaps shelves to tile
-            // edges; this keeps to that), then vertically, see below.
-            el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+            // Horizontally a page at a time: a tile that is (partly) off
+            // screen is brought to the far side, so the next moves stay on
+            // screen and need no scrolling. Every scroll costs the Pi a style
+            // recalculation of the whole shelf (Apple's own updates).
             var r = el.getBoundingClientRect();
+            var shelf = el.closest('[data-testid="shelf-item-list"]');
+            if (shelf) {
+                // The lifted (scaled) tile sticks out a few pixels.
+                var s = shelf.getBoundingClientRect(), slack = 10;
+                if (r.right > s.right + slack) {
+                    el.scrollIntoView({ block: 'nearest', inline: 'start', behavior: 'auto' });
+                } else if (r.left < s.left - slack) {
+                    el.scrollIntoView({ block: 'nearest', inline: 'end', behavior: 'auto' });
+                }
+            }
+            // scrollIntoView may also have scrolled the page.
+            r = el.getBoundingClientRect();
             // Vertically so the item stays between the header and the mini
             // player.
             var page = root();

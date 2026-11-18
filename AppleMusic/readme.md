@@ -194,7 +194,14 @@ With the [SiriRemote](../SiriRemote/readme.md) project installed:
 - **Swipes in Apple Music** follow the thumb sideways like in moOde, but a
   swipe up or down moves at most one row and a flick does not coast: every
   new row takes the Pi a while to draw, so more steps would lag behind the
-  thumb. For the same reason the page jumps instead of gliding.
+  thumb. For the same reason the page jumps instead of gliding, and a shelf
+  scrolls a page at a time: a tile that is off screen is brought to the far
+  side, so the next moves need no scrolling (each scroll makes the Pi
+  recalculate the styles of the whole shelf, ~120 ms).
+- The invisible mouse pointer is parked in the top-left corner when Apple
+  Music opens or is shown, and before each remote move. Left over the tiles,
+  every scroll changed which tile was under it and the Pi recalculated their
+  `:hover` styles: 15–35% of the style work per scroll.
 - In moOde's Playback view, touchpad left/right stay Previous/Next for Apple
   Music while it is the source; other moOde views navigate as usual.
 - The remote's on-screen feedback (volume, play/pause, next, battery,

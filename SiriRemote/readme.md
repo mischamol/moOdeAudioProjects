@@ -245,6 +245,11 @@ Bluetooth callback.
   Pi a while to draw (measured up to a second), so more steps lagged behind
   the thumb. In Apple Music's full-screen player, touchpad left/right are
   Previous/Next and swipes do nothing.
+- The invisible pointer is moved to the top-left corner after every
+  synthetic click and before every navigation step (a touch on the screen
+  also moves it). Left over the content, each scroll changed the element
+  under it and the browser recalculated `:hover` styles; in Apple Music that
+  was 15–35% of the style work per scroll on the Pi.
 - At daemon start, the Playback synchronization click is skipped while Apple
   Music is on screen.
 

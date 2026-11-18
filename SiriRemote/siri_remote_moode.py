@@ -1035,6 +1035,26 @@ class X11ClickWorker:
             xtst.XTestFakeMotionEvent(display, 0, x, y, 0)
             xtst.XTestFakeButtonEvent(display, 1, True, 0)
             xtst.XTestFakeButtonEvent(display, 1, False, 50)
+            self._park_pointer_on(xtst, display, 50)
+            x11.XFlush(display)
+        finally:
+            x11.XCloseDisplay(display)
+
+    # The (invisible) pointer is parked in the top-left corner: left over
+    # the content, every scroll moves another tile under it and the browser
+    # recalculates its :hover styles. In Apple Music that was measured as
+    # about a third of the style work of each scroll on the Pi.
+    PARK_X = 0
+    PARK_Y = 0
+
+    def _park_pointer_on(self, xtst: ctypes.CDLL, display: int, delay_ms: int = 0) -> None:
+        xtst.XTestFakeMotionEvent(display, 0, self.PARK_X, self.PARK_Y, delay_ms)
+
+    def _park_pointer(self) -> None:
+        x11, xtst = self._load_libraries()
+        display = self._open_display(x11)
+        try:
+            self._park_pointer_on(xtst, display)
             x11.XFlush(display)
         finally:
             x11.XCloseDisplay(display)
@@ -1063,6 +1083,8 @@ class X11ClickWorker:
         x11, xtst = self._load_libraries()
         display = self._open_display(x11)
         try:
+            # A touch on the screen leaves the pointer over the content.
+            self._park_pointer_on(xtst, display)
             for action in actions:
                 keycodes = [
                     x11.XKeysymToKeycode(display, keysym)
@@ -1215,6 +1237,11 @@ class X11ClickWorker:
         moves = ["select" if m.startswith("select") else m.replace("continue-", "") for m in moves]
         moves = [m for m in moves if m in ("left", "right", "up", "down", "select")]
         if moves:
+            try:
+                # A touch on the screen leaves the pointer over the content.
+                self._park_pointer()
+            except (OSError, RuntimeError) as exc:
+                LOG.debug("Could not park the pointer: %s", exc)
             apple_music.control("nav:" + ",".join(moves[:16]))
             LOG.info("Touchpad Apple Music navigation -> %s", ", ".join(moves))
         return True

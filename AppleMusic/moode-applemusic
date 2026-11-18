@@ -46,6 +46,10 @@ is_hidden() { [ -e "$RUN_DIR/hidden" ]; }
 # playing and reopening is instant. There is no window manager, so the
 # windows are unmapped and mapped again with xdotool.
 xdo() { runuser -u "$display_user" -- env DISPLAY=:0 xdotool "$@"; }
+# Park the (invisible) pointer in the top-left corner. Left over Apple
+# Music's tiles, every scroll moves another tile under it and the Pi
+# recalculates their :hover styles (about a third of the work per scroll).
+park_pointer() { xdo mousemove 0 0 >/dev/null 2>&1 || true; }
 app_windows() {
     local pid
     pid=$(systemctl show -p MainPID --value "$UNIT" 2>/dev/null)
@@ -72,6 +76,7 @@ cmd_show() {
         done
     fi
     rm -f "$RUN_DIR/hidden"
+    park_pointer
     echo running
 }
 
@@ -259,6 +264,7 @@ cmd_open() {
         -p "ExecStopPost=+/usr/local/bin/moode-applemusic after-close" \
         /usr/bin/chromium-browser "${args[@]}" \
         || die "failed to start Chromium"
+    park_pointer
     if [ "$APPLEMUSIC_FREEZE_MOODE" = yes ]; then
         # Give Apple Music time to cover the screen before pausing moOde.
         ( sleep 6; is_running && freeze_moode ) >/dev/null 2>&1 &
