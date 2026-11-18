@@ -105,8 +105,10 @@ sed -i '/^SIRI_MENU_CLICK_X=/d; /^SIRI_MENU_CLICK_Y=/d' /etc/default/siri-remote
 sed -i 's/^SIRI_ATT_MTU=104$/SIRI_ATT_MTU=23/' /etc/default/siri-remote-moode
 grep -q '^SIRI_ATT_MTU=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_ATT_MTU=23' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_LE_SUPERVISION_TIMEOUT_MS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_LE_SUPERVISION_TIMEOUT_MS=2000' >> /etc/default/siri-remote-moode
-sed -i 's/^SIRI_CONNECT_TIMEOUT_SECONDS=2$/SIRI_CONNECT_TIMEOUT_SECONDS=4/' /etc/default/siri-remote-moode
-grep -q '^SIRI_CONNECT_TIMEOUT_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_CONNECT_TIMEOUT_SECONDS=4' >> /etc/default/siri-remote-moode
+sed -i 's/^SIRI_CONNECT_TIMEOUT_SECONDS=[24]$/SIRI_CONNECT_TIMEOUT_SECONDS=18/' /etc/default/siri-remote-moode
+grep -q '^SIRI_CONNECT_TIMEOUT_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_CONNECT_TIMEOUT_SECONDS=18' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_LE_MIN_INTERVAL_MS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_LE_MIN_INTERVAL_MS=30' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_LE_MAX_INTERVAL_MS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_LE_MAX_INTERVAL_MS=50' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_KEEPALIVE_SECONDS=.*/SIRI_KEEPALIVE_SECONDS=0/' /etc/default/siri-remote-moode
 grep -q '^SIRI_KEEPALIVE_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_KEEPALIVE_SECONDS=0' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_BATTERY_CHECK_SECONDS=300$/SIRI_BATTERY_CHECK_SECONDS=900/' /etc/default/siri-remote-moode
@@ -119,7 +121,7 @@ grep -q '^SIRI_BATTERY_LOW_PERCENT=' /etc/default/siri-remote-moode || printf '%
 grep -q '^SIRI_BATTERY_CRITICAL_PERCENT=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_BATTERY_CRITICAL_PERCENT=5' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_SECURITY=.*/SIRI_SECURITY=medium/' /etc/default/siri-remote-moode
 sed -i 's/^RECONNECT_MIN=.*/RECONNECT_MIN=0.2/' /etc/default/siri-remote-moode
-sed -i 's/^RECONNECT_MAX=.*/RECONNECT_MAX=1/' /etc/default/siri-remote-moode
+sed -i 's/^RECONNECT_MAX=.*/RECONNECT_MAX=0.2/' /etc/default/siri-remote-moode
 grep -q '^SIRI_RECLAIM_BUSY=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_RECLAIM_BUSY=yes' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_DEBUG=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_DEBUG=no' >> /etc/default/siri-remote-moode
 

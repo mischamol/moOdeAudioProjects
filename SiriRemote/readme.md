@@ -590,13 +590,22 @@ wake-up press.
 
 ### Connection timed out
 
-The remote may be asleep and not advertising. Press a button while the log
-shows `Connecting to Siri Remote ...`. Each connection attempt is bounded by
-`SIRI_CONNECT_TIMEOUT_SECONDS` (four seconds by default), followed by at most
-one second of reconnect backoff. This prevents a sleeping remote from trapping
-one kernel connect call for tens of seconds or longer. In two tested wake-up
-cycles, a sleeping remote connected, executed Volume+, and queued its overlay
-in approximately 1.36–2.55 seconds without requiring a second button press.
+The remote may be asleep and not advertising; it falls asleep about two
+minutes after the last press. Press a button while the log shows
+`Connecting to Siri Remote ...`. While the remote sleeps, the daemon keeps one
+connection attempt open for `SIRI_CONNECT_TIMEOUT_SECONDS` (18 seconds by
+default) and starts the next one after `RECONNECT_MAX` (0.2 seconds), so the
+Pi is listening about 99% of the time when a press wakes the remote. With the
+earlier 4-second attempts and 1-second gaps, a press during the gap could be
+noticed late or not at all. A service stop does not wait for an open attempt.
+
+After connecting, the daemon enables the remote's input; the wake-up press
+then arrives and is executed, in tests within one second of the press.
+`SIRI_LE_MIN_INTERVAL_MS`/`SIRI_LE_MAX_INTERVAL_MS` set the connection
+interval (30–50 ms by default). A shorter 15–30 ms interval was tested and
+made the encrypted reconnect after sleep stall, so the press was lost. If the
+daemon is restarted while the remote is awake, the remote repeats its last
+button once after reconnecting.
 
 On the tested Pi/kernel combination, HCI tracing showed that the kernel default
 LE supervision timeout was only 420 ms. A reconnect encryption exchange could

@@ -222,15 +222,20 @@ def mgmt_connection_parameter_payload(
     mac: str,
     address_type: int,
     supervision_timeout_units: int,
+    min_interval_units: int = 24,
+    max_interval_units: int = 40,
 ) -> bytes:
-    """Build one Linux MGMT Load Connection Parameters entry."""
+    """Build one Linux MGMT Load Connection Parameters entry.
+
+    Intervals are in 1.25 ms units, the supervision timeout in 10 ms units.
+    """
     return struct.pack(
         "<H6sBHHHH",
         1,
         parse_mac(mac)[::-1],
         address_type,
-        24,
-        40,
+        min_interval_units,
+        max_interval_units,
         0,
         supervision_timeout_units,
     )
@@ -242,6 +247,8 @@ def load_le_connection_parameters(
     supervision_timeout_units: int,
     adapter_index: int = 0,
     response_timeout: float = 2.0,
+    min_interval_units: int = 24,
+    max_interval_units: int = 40,
 ) -> None:
     """Load per-device LE defaults through Linux's official MGMT channel."""
     libc = ctypes.CDLL(None, use_errno=True)
@@ -257,6 +264,7 @@ def load_le_connection_parameters(
         )
         payload = mgmt_connection_parameter_payload(
             mac, address_type, supervision_timeout_units,
+            min_interval_units, max_interval_units,
         )
         command = struct.pack(
             "<HHH", MGMT_OP_LOAD_CONN_PARAM, adapter_index, len(payload),
@@ -325,7 +333,7 @@ class RawAttClient:
         self.battery_handler = None
         self.battery_level: int | None = None
 
-    def connect(self) -> None:
+    def connect(self, stop_event: threading.Event | None = None) -> None:
         libc = ctypes.CDLL(None, use_errno=True)
         fd = checked_call(libc, "socket", AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP)
         pending_socket: socket.socket | None = None
@@ -360,9 +368,21 @@ class RawAttClient:
                     errno.EWOULDBLOCK,
                 ):
                     raise OSError(connect_error, os.strerror(connect_error))
-                _, writable, exceptional = select.select(
-                    [], [pending_socket], [pending_socket], self.connect_timeout,
-                )
+                # Wait in short slices so a service stop does not have to
+                # wait for a long connection window to end.
+                deadline = time.monotonic() + self.connect_timeout
+                writable, exceptional = [], []
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        break
+                    _, writable, exceptional = select.select(
+                        [], [pending_socket], [pending_socket], min(remaining, 0.5),
+                    )
+                    if writable or exceptional:
+                        break
+                    if stop_event is not None and stop_event.is_set():
+                        raise ConnectionError("stopping")
                 if exceptional:
                     raise ConnectionError(
                         "Bluetooth ATT connect entered an exceptional state"
@@ -2944,9 +2964,14 @@ def run(args: argparse.Namespace) -> int:
                 args.mac,
                 address_type,
                 args.supervision_timeout_ms // 10,
+                min_interval_units=round(args.min_interval_ms / 1.25),
+                max_interval_units=round(args.max_interval_ms / 1.25),
             )
             LOG.info(
-                "Loaded Siri Remote LE supervision timeout: %d ms",
+                "Loaded Siri Remote LE parameters: interval %g-%g ms, "
+                "supervision timeout %d ms",
+                args.min_interval_ms,
+                args.max_interval_ms,
                 args.supervision_timeout_ms,
             )
         except (ConnectionError, OSError) as exc:
@@ -2979,7 +3004,7 @@ def run(args: argparse.Namespace) -> int:
             mapper.reset()
             try:
                 LOG.info("Connecting to Siri Remote %s", args.mac)
-                client.connect()
+                client.connect(stop_event)
                 if args.mtu > 23:
                     LOG.info("Connected; negotiating ATT MTU %d", args.mtu)
                     negotiated_mtu = client.exchange_mtu(args.mtu)
@@ -3053,9 +3078,21 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--min-interval-ms",
+        type=float,
+        default=float(env("SIRI_LE_MIN_INTERVAL_MS", "30")),
+        help="minimum LE connection interval (multiple of 1.25 ms)",
+    )
+    parser.add_argument(
+        "--max-interval-ms",
+        type=float,
+        default=float(env("SIRI_LE_MAX_INTERVAL_MS", "50")),
+        help="maximum LE connection interval (multiple of 1.25 ms)",
+    )
+    parser.add_argument(
         "--connect-timeout",
         type=float,
-        default=float(env("SIRI_CONNECT_TIMEOUT_SECONDS", "4")),
+        default=float(env("SIRI_CONNECT_TIMEOUT_SECONDS", "18")),
         help="maximum seconds for one Bluetooth connection attempt",
     )
     parser.add_argument(
@@ -3124,6 +3161,13 @@ def parse_args() -> argparse.Namespace:
         parser.error(
             "supervision timeout must be 0 or a multiple of 10 from 100 to 32000 ms"
         )
+    for name, value in (("minimum", args.min_interval_ms), ("maximum", args.max_interval_ms)):
+        if not 7.5 <= value <= 4000 or abs(value / 1.25 - round(value / 1.25)) > 1e-6:
+            parser.error(f"{name} LE interval must be a multiple of 1.25 from 7.5 to 4000 ms")
+    if args.max_interval_ms < args.min_interval_ms:
+        parser.error("maximum LE interval must not be below the minimum")
+    if args.supervision_timeout_ms and args.supervision_timeout_ms <= 2 * args.max_interval_ms:
+        parser.error("supervision timeout must exceed twice the maximum LE interval")
     if args.connect_timeout <= 0:
         parser.error("connect timeout must be greater than zero")
     if args.keepalive < 0:

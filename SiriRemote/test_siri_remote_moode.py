@@ -1094,6 +1094,17 @@ class RawAttClientTests(unittest.TestCase):
         self.assertEqual(values[1], bytes.fromhex("9965f20f4870"))
         self.assertEqual(values[2:], (1, 24, 40, 0, 200))
 
+    def test_mgmt_connection_parameters_use_requested_interval(self):
+        payload = remote.mgmt_connection_parameter_payload(
+            "70:48:0F:F2:65:99",
+            remote.BDADDR_LE_PUBLIC,
+            200,
+            12,
+            24,
+        )
+        values = struct.unpack("<H6sBHHHH", payload)
+        self.assertEqual(values[3:], (12, 24, 0, 200))
+
     def test_battery_interval_tracks_latest_att_reading(self):
         client = remote.RawAttClient(
             "70:48:0F:F2:65:99", "public", "medium",
