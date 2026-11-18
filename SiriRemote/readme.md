@@ -239,8 +239,11 @@ Bluetooth callback.
   Music's tiles, cards, buttons and songs, and a touchpad click plays the
   focused album, playlist, station or song at once, like the Library
   navigation in moOde. The daemon sends
-  them as `nav:` commands to `applemusic.php`; momentum batches are sent as
-  one command. In Apple Music's full-screen player, touchpad left/right are
+  them as `nav:` commands to `applemusic.php`. Sideways the focus follows the
+  thumb as in moOde, but while Apple Music is on screen a swipe up or down
+  moves at most one row and a flick does not coast: every new row takes the
+  Pi a while to draw (measured up to a second), so more steps lagged behind
+  the thumb. In Apple Music's full-screen player, touchpad left/right are
   Previous/Next and swipes do nothing.
 - At daemon start, the Playback synchronization click is skipped while Apple
   Music is on screen.
@@ -403,19 +406,33 @@ Previous/Next behavior.
 </p>
 <sub>Current local interface. Left: directional touchpad focus in the square-cover Album view. Right: the Library source chooser after a double press on Menu/Back, focused on the active source with the same row highlight used for pointer or keyboard focus in a network browser.</sub>
 
-The first-generation touch area is decoded in both axes. Swipe distance and
-average speed are combined into bounded momentum: a deliberate short swipe
-moves one item, while a fast long swipe can move up to eight items. All steps
-from one gesture are sent as one X11 batch and the final album selection is
-centred without stacking separate scroll animations. In the compact Library
-source chooser, a short swipe still moves one source, while a longer or faster
-swipe can traverse all sources. Its continuation steps are displayed at a
-constant interval so the focus progresses evenly instead of jumping at the end.
-No movement continues after the finger is lifted. Configure this behavior with
-`SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_STEP_DISTANCE`,
+The first-generation touch area is decoded in both axes. Swipes work like on
+an Apple TV:
+
+- **The focus follows the thumb.** The first step comes after
+  `SIRI_SWIPE_MIN_DISTANCE`, then one step per `SIRI_SWIPE_STEP_DISTANCE`
+  travelled on the dominant axis, for as long as the thumb moves. The thumb
+  may turn during a swipe (right, then down). The touchpad reports about 1600
+  units across and 700 from bottom to top; vertical travel is multiplied by
+  `SIRI_SWIPE_Y_SCALE` (1.0: a vertical step is a whole row, a bigger jump).
+- **A flick coasts on.** At release, the speed of the last 0.25 seconds above
+  `SIRI_SWIPE_MOMENTUM_MIN_SPEED` (units per second) times
+  `SIRI_SWIPE_MOMENTUM_SECONDS` is the extra distance, at most
+  `SIRI_SWIPE_MOMENTUM_MAX_DISTANCE`: with the defaults one extra step per
+  3000 units/s above 5000, at most five. The extra steps follow each other
+  ever more slowly (60 ms, then ×1.35). Touching the pad again or pressing a
+  button stops them. A thumb that stops before lifting does not coast.
+- **moOde glides along.** The Library list scrolls with a 240 ms ease-out
+  animation that keeps the focused item in the middle, and the focused cover
+  lifts slightly (animated scale).
+
+In the compact Library source chooser, a short swipe still moves one source,
+while a longer or faster swipe can traverse all sources; its continuation
+steps are displayed at a constant interval. Configure the gesture with
+`SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_STEP_DISTANCE`, `SIRI_SWIPE_Y_SCALE`,
 `SIRI_SWIPE_MAX_STEPS`, `SIRI_SWIPE_MOMENTUM_MIN_SPEED`,
-`SIRI_SWIPE_MOMENTUM_SECONDS`, `SIRI_SWIPE_MOMENTUM_MAX_DISTANCE`,
-`SIRI_SWIPE_MAX_SECONDS`, and `SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. The click split remains configurable with
+`SIRI_SWIPE_MOMENTUM_SECONDS`, `SIRI_SWIPE_MOMENTUM_MAX_DISTANCE`, and
+`SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. The click split remains configurable with
 `SIRI_TOUCH_X_SPLIT`, `SIRI_TOUCH_DEAD_ZONE`, and
 `SIRI_TOUCH_MAX_AGE_SECONDS`.
 

@@ -24,9 +24,13 @@
 
     var style = document.createElement('style');
     // moOde's accent colour (theme.js); album pages set their own --keyColor.
+    // Apple TV-like: the focused item lifts a little and the previous one
+    // settles back, animated (transform only: cheap on the Pi).
     style.textContent =
+        SELECTOR + ' { transition: transform .18s cubic-bezier(.2, .8, .2, 1); }' +
         '.' + FOCUS + ' { outline: 4px solid var(--moode-accent, var(--keyColor, #d35400)) !important;' +
-        ' outline-offset: 3px; border-radius: 10px; }';
+        ' outline-offset: 3px; border-radius: 10px; transform: scale(1.05); position: relative; z-index: 2; }' +
+        '[data-testid="track-list-item"].' + FOCUS + ' { transform: none; }';
     (document.head || document.documentElement).appendChild(style);
 
     var current = null;
@@ -86,6 +90,11 @@
         return row ? row.items[Math.min(at.index, row.items.length - 1)] : null;
     }
 
+    // Scrolling jumps. A gliding animation (as in moOde's Library) was
+    // tried: on the Pi every in-between position makes Apple Music
+    // recalculate which sections are visible, up to a second per step, so
+    // the focus lagged behind the thumb.
+
     function setFocus(el) {
         if (current && current !== el) { current.classList.remove(FOCUS); }
         current = el;
@@ -95,10 +104,13 @@
         // into view, Apple Music renders them and the Pi is busy for a while.
         requestAnimationFrame(function () {
             if (current !== el) { return; }
-            // Horizontally within its shelf, then vertically so the item stays
-            // between the header and the mini player.
+            // Horizontally within its shelf (Apple snaps shelves to tile
+            // edges; this keeps to that), then vertically, see below.
             el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
-            var page = root(), r = el.getBoundingClientRect();
+            var r = el.getBoundingClientRect();
+            // Vertically so the item stays between the header and the mini
+            // player.
+            var page = root();
             var top = 64, bottom = window.innerHeight - 110;
             if (r.bottom > bottom) {
                 page.scrollTop += Math.min(r.bottom - bottom, r.top - top);
@@ -188,5 +200,7 @@
     });
 
     // Touching the screen ends remote navigation, as in moOde.
-    window.addEventListener('pointerdown', function (ev) { if (ev.isTrusted) { clearFocus(); } }, true);
+    window.addEventListener('pointerdown', function (ev) {
+        if (ev.isTrusted) { clearFocus(); }
+    }, true);
 }());

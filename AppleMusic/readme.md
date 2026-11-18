@@ -188,9 +188,13 @@ With the [SiriRemote](../SiriRemote/readme.md) project installed:
   and songs, scrolling along, also through the horizontal rows (tiles to the
   right of the screen included); a touchpad click plays the focused album,
   playlist, station or song at once, without opening its page (touch the
-  screen to open an album page). Touching the screen or choosing an item
-  removes the frame. In the full-screen player, touchpad left/right are
-  Previous/Next.
+  screen to open an album page). The focused tile lifts slightly. Touching
+  the screen or choosing an item removes the frame. In the full-screen
+  player, touchpad left/right are Previous/Next.
+- **Swipes in Apple Music** follow the thumb sideways like in moOde, but a
+  swipe up or down moves at most one row and a flick does not coast: every
+  new row takes the Pi a while to draw, so more steps would lag behind the
+  thumb. For the same reason the page jumps instead of gliding.
 - In moOde's Playback view, touchpad left/right stay Previous/Next for Apple
   Music while it is the source; other moOde views navigate as usual.
 - The remote's on-screen feedback (volume, play/pause, next, battery,

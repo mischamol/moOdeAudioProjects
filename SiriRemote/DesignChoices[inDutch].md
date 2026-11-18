@@ -118,15 +118,21 @@ bladeren wordt de oude `.active`-achtergrond tijdelijk verborgen, zodat precies
 alleen moOde's normale markering over. In Playback blijft een fysieke click op
 de linker- of rechterhelft Previous/Next uitvoeren.
 
-De Gen-1-touchdata wordt in beide assen gedecodeerd. Afstand en gemiddelde
-snelheid bepalen samen een begrensd momentum: een rustige korte swipe gaat één
-item verder en een snelle lange swipe maximaal acht. Alle stappen van één
-gesture worden als één X11-batch verstuurd; pas de eindselectie wordt vloeiend
-in beeld gecentreerd. De veegdrempels zijn instelbaar met
-`SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_STEP_DISTANCE`,
+De Gen-1-touchdata wordt in beide assen gedecodeerd. Swipes werken zoals op een
+Apple TV. De focus volgt de duim: na `SIRI_SWIPE_MIN_DISTANCE` de eerste stap,
+daarna één stap per `SIRI_SWIPE_STEP_DISTANCE` over de dominante as, zolang de
+duim beweegt en ook als hij halverwege van richting verandert. Verticale
+afstand telt met factor `SIRI_SWIPE_Y_SCALE` (1.0; een verticale stap is een
+hele rij). Na het loslaten loopt een flick uit: de snelheid boven
+`SIRI_SWIPE_MOMENTUM_MIN_SPEED` maal `SIRI_SWIPE_MOMENTUM_SECONDS` geeft extra
+afstand (maximaal `SIRI_SWIPE_MOMENTUM_MAX_DISTANCE`); die extra stappen volgen
+steeds trager op elkaar en stoppen bij een nieuwe aanraking of knop. moOde laat
+de lijst met een korte ease-out-animatie meeglijden en tilt de gefocuste hoes
+iets op. Zie de readme voor de getallen. Instelbaar met
+`SIRI_SWIPE_MIN_DISTANCE`, `SIRI_SWIPE_STEP_DISTANCE`, `SIRI_SWIPE_Y_SCALE`,
 `SIRI_SWIPE_MAX_STEPS`, `SIRI_SWIPE_MOMENTUM_MIN_SPEED`,
-`SIRI_SWIPE_MOMENTUM_SECONDS`, `SIRI_SWIPE_MOMENTUM_MAX_DISTANCE`,
-`SIRI_SWIPE_MAX_SECONDS` en `SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. De klikverdeling blijft instelbaar met
+`SIRI_SWIPE_MOMENTUM_SECONDS`, `SIRI_SWIPE_MOMENTUM_MAX_DISTANCE` en
+`SIRI_TOUCH_SEQUENCE_GAP_SECONDS`. De klikverdeling blijft instelbaar met
 `SIRI_TOUCH_X_SPLIT`, `SIRI_TOUCH_DEAD_ZONE` en
 `SIRI_TOUCH_MAX_AGE_SECONDS`.
 

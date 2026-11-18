@@ -2415,24 +2415,39 @@ class ButtonMapper:
         self.gesture_start_time = 0.0
         self.gesture_direction: str | None = None
         self.gesture_steps_sent = 0
+        self.gesture_anchor_x = 0
+        self.gesture_anchor_y = 0
+        self.gesture_samples: list[tuple[float, int, int]] = []
+        self.gesture_vertical_steps = 0
+        self.gesture_apple_music = False
+        self.coast_timer: threading.Timer | None = None
+        self.coast_token: object | None = None
         self.touch_click_handled = False
         self.last_volume_press_time = 0.0
         self.touch_x_split = int(env("SIRI_TOUCH_X_SPLIT", str(GEN1_TOUCH_X_MID)), 0)
         self.touch_dead_zone = int(env("SIRI_TOUCH_DEAD_ZONE", "60"), 0)
         self.touch_max_age = float(env("SIRI_TOUCH_MAX_AGE_SECONDS", "1.5"))
-        self.swipe_min_distance = int(env("SIRI_SWIPE_MIN_DISTANCE", "350"), 0)
-        self.swipe_step_distance = int(env("SIRI_SWIPE_STEP_DISTANCE", "450"), 0)
+        self.swipe_min_distance = int(env("SIRI_SWIPE_MIN_DISTANCE", "300"), 0)
+        self.swipe_step_distance = int(env("SIRI_SWIPE_STEP_DISTANCE", "380"), 0)
+        # Multiplies vertical travel. The Gen-1 touchpad reports about 1600
+        # units across and 700 from bottom to top, but a vertical step (a
+        # whole row) is a bigger jump; 1.0 felt right in moOde's Album view.
+        self.swipe_y_scale = float(env("SIRI_SWIPE_Y_SCALE", "1.0"))
+        self.swipe_momentum_window = float(
+            env("SIRI_SWIPE_MOMENTUM_WINDOW_SECONDS", "0.25")
+        )
+        self.coast_first_delay = float(env("SIRI_SWIPE_COAST_FIRST_DELAY_SECONDS", "0.06"))
+        self.coast_growth = float(env("SIRI_SWIPE_COAST_GROWTH", "1.35"))
         self.swipe_max_steps = int(env("SIRI_SWIPE_MAX_STEPS", "8"), 0)
         self.swipe_momentum_min_speed = float(
-            env("SIRI_SWIPE_MOMENTUM_MIN_SPEED", "4000")
+            env("SIRI_SWIPE_MOMENTUM_MIN_SPEED", "5000")
         )
         self.swipe_momentum_seconds = float(
-            env("SIRI_SWIPE_MOMENTUM_SECONDS", "0.40")
+            env("SIRI_SWIPE_MOMENTUM_SECONDS", "0.13")
         )
         self.swipe_momentum_max_distance = int(
-            env("SIRI_SWIPE_MOMENTUM_MAX_DISTANCE", "2700"), 0
+            env("SIRI_SWIPE_MOMENTUM_MAX_DISTANCE", "1900"), 0
         )
-        self.swipe_max_seconds = float(env("SIRI_SWIPE_MAX_SECONDS", "1.5"))
         self.touch_sequence_gap = float(
             env("SIRI_TOUCH_SEQUENCE_GAP_SECONDS", "0.35")
         )
@@ -2446,6 +2461,8 @@ class ButtonMapper:
             env("SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS", "2")
         )
         self.reconnect_duplicate_guard_until = 0.0
+        # False while a connection is being set up (see notification()).
+        self.input_active = True
         if not GEN1_TOUCH_X_MIN <= self.touch_x_split <= GEN1_TOUCH_X_MAX:
             raise ValueError(
                 f"SIRI_TOUCH_X_SPLIT must be between {GEN1_TOUCH_X_MIN} "
@@ -2467,8 +2484,12 @@ class ButtonMapper:
             raise ValueError("SIRI_SWIPE_MOMENTUM_SECONDS cannot be negative")
         if self.swipe_momentum_max_distance < 0:
             raise ValueError("SIRI_SWIPE_MOMENTUM_MAX_DISTANCE cannot be negative")
-        if self.swipe_max_seconds <= 0:
-            raise ValueError("SIRI_SWIPE_MAX_SECONDS must be greater than zero")
+        if self.swipe_y_scale <= 0:
+            raise ValueError("SIRI_SWIPE_Y_SCALE must be greater than zero")
+        if self.swipe_momentum_window <= 0:
+            raise ValueError("SIRI_SWIPE_MOMENTUM_WINDOW_SECONDS must be greater than zero")
+        if self.coast_first_delay <= 0 or self.coast_growth < 1:
+            raise ValueError("coast delay must be > 0 and growth >= 1")
         if self.touch_sequence_gap <= 0:
             raise ValueError("SIRI_TOUCH_SEQUENCE_GAP_SECONDS must be greater than zero")
         if self.volume_repeat_recovery <= 0:
@@ -2525,6 +2546,8 @@ class ButtonMapper:
             self.gesture_start_time = 0.0
             self.gesture_direction = None
             self.gesture_steps_sent = 0
+            self.gesture_samples = []
+            self._cancel_coast_locked()
             self.touch_click_handled = False
             self.last_volume_press_time = 0.0
             self.reconnect_duplicate_guard_until = 0.0
@@ -2538,9 +2561,15 @@ class ButtonMapper:
         if self.overlay_worker is not None:
             self.overlay_worker.cancel("shutdown")
 
+    def mark_connecting(self) -> None:
+        """A new connection is being set up; see notification()."""
+        with self.lock:
+            self.input_active = False
+
     def mark_connection_ready(self) -> None:
         """Start a short guard against duplicate wake-up volume reports."""
         with self.lock:
+            self.input_active = True
             self.reconnect_duplicate_guard_until = (
                 time.monotonic() + self.reconnect_duplicate_guard
             )
@@ -2640,75 +2669,187 @@ class ButtonMapper:
     def _touch_gesture_locked(
         self, touch: tuple[int, int, int], now: float
     ) -> list[str]:
+        """Apple TV-like swipes.
+
+        The focus follows the thumb: every SIRI_SWIPE_STEP_DISTANCE travelled
+        on the dominant axis is one step, also when the thumb changes
+        direction during the swipe and without a time limit. The touchpad
+        reports far fewer units vertically than horizontally, so vertical
+        travel is multiplied by SIRI_SWIPE_Y_SCALE. A flick coasts on after
+        release with decreasing speed (see _plan_coast_locked).
+        """
         x, y, pressure = touch
         if pressure == 0:
-            self.gesture_start_x = None
-            self.gesture_start_y = None
-            self.gesture_direction = None
-            self.gesture_steps_sent = 0
+            if self.gesture_start_x is not None:
+                self._plan_coast_locked(now)
+            self._end_gesture_locked()
             return []
         if (
             self.gesture_start_x is None
             or now - self.last_touch_time > self.touch_sequence_gap
         ):
-            self.gesture_start_x = x
-            self.gesture_start_y = y
+            # A new touch stops a coasting flick, like on an Apple TV.
+            self._cancel_coast_locked()
+            self.gesture_start_x = self.gesture_anchor_x = x
+            self.gesture_start_y = self.gesture_anchor_y = y
             self.gesture_start_time = now
             self.gesture_direction = None
             self.gesture_steps_sent = 0
+            self.gesture_vertical_steps = 0
+            self.gesture_samples = [(now, x, y)]
+            # Apple Music's pages are heavy for the Pi: every new row takes
+            # it a while to draw. There a swipe moves at most one row and a
+            # flick does not coast.
+            self.gesture_apple_music = self._apple_music_shown()
             return []
-        elapsed = now - self.gesture_start_time
-        if elapsed > self.swipe_max_seconds:
-            return []
-        dx = x - self.gesture_start_x
-        dy = y - self.gesture_start_y
-        if self.gesture_direction is None:
-            if max(abs(dx), abs(dy)) < self.swipe_min_distance:
-                return []
-            if abs(dx) >= abs(dy):
-                self.gesture_direction = "right" if dx > 0 else "left"
+        self.gesture_samples.append((now, x, y))
+        if len(self.gesture_samples) > 64:
+            del self.gesture_samples[:-64]
+
+        actions: list[str] = []
+        while len(actions) < self.swipe_max_steps:
+            dx = x - self.gesture_anchor_x
+            dy = (y - self.gesture_anchor_y) * self.swipe_y_scale
+            horizontal = abs(dx) >= abs(dy)
+            distance = abs(dx) if horizontal else abs(dy)
+            threshold = (
+                self.swipe_min_distance
+                if self.gesture_steps_sent == 0
+                else self.swipe_step_distance
+            )
+            if distance < threshold:
+                break
+            if horizontal:
+                direction = "right" if dx > 0 else "left"
+                self.gesture_anchor_x += threshold if dx > 0 else -threshold
+                # A turn starts fresh on the other axis.
+                self.gesture_anchor_y = y
             else:
                 # Raw Gen-1 Y grows from the lower edge towards the upper edge.
-                self.gesture_direction = "up" if dy > 0 else "down"
-
-        if self.gesture_direction == "right":
-            distance = dx
-        elif self.gesture_direction == "left":
-            distance = -dx
-        elif self.gesture_direction == "up":
-            distance = dy
-        else:
-            distance = -dy
-        if distance < self.swipe_min_distance:
-            return []
-
-        # Average speed is less sensitive to a single irregular Bluetooth
-        # sample than instantaneous velocity. Only speed above the deliberate
-        # swipe threshold contributes momentum.
-        speed = distance / max(elapsed, 0.001)
-        momentum_distance = min(
-            float(self.swipe_momentum_max_distance),
-            max(0.0, speed - self.swipe_momentum_min_speed)
-            * self.swipe_momentum_seconds,
-        )
-        projected_distance = distance + momentum_distance
-        target_steps = 1 + int(
-            (projected_distance - self.swipe_min_distance)
-            // self.swipe_step_distance
-        )
-        target_steps = min(self.swipe_max_steps, target_steps)
-        new_steps = target_steps - self.gesture_steps_sent
-        if new_steps <= 0:
-            return []
-
-        first_action = self.gesture_direction
-        continuation = "continue-" + self.gesture_direction
-        actions = [
-            first_action if self.gesture_steps_sent == 0 and index == 0 else continuation
-            for index in range(new_steps)
-        ]
-        self.gesture_steps_sent = target_steps
+                direction = "up" if dy > 0 else "down"
+                step = threshold / self.swipe_y_scale
+                self.gesture_anchor_y += step if dy > 0 else -step
+                self.gesture_anchor_x = x
+                if self.gesture_apple_music and self.gesture_vertical_steps >= 1:
+                    # Only one row per swipe in Apple Music.
+                    self.gesture_anchor_y = y
+                    break
+                self.gesture_vertical_steps += 1
+            actions.append(
+                "continue-" + direction
+                if direction == self.gesture_direction
+                else direction
+            )
+            self.gesture_direction = direction
+            self.gesture_steps_sent += 1
         return actions
+
+    def _apple_music_shown(self) -> bool:
+        apple_music = getattr(self.screen_clicker, "apple_music", None)
+        if apple_music is None:
+            return False
+        try:
+            return bool(apple_music.visible())
+        except Exception:  # never let a state-file problem break swipes
+            return False
+
+    def _end_gesture_locked(self) -> None:
+        self.gesture_start_x = None
+        self.gesture_start_y = None
+        self.gesture_direction = None
+        self.gesture_steps_sent = 0
+        self.gesture_samples = []
+
+    def _plan_coast_locked(self, now: float) -> None:
+        """Let a flick coast on after the thumb leaves the touchpad.
+
+        The release speed is the fastest movement in the last
+        SIRI_SWIPE_MOMENTUM_WINDOW_SECONDS (reports arrive in bursts, so
+        speeds are measured over at least 40 ms). A thumb that stopped
+        before lifting does not coast.
+        """
+        if self.gesture_apple_music:
+            return
+        samples = [
+            sample for sample in self.gesture_samples
+            if now - sample[0] <= self.swipe_momentum_window
+        ]
+        best = (0.0, None)
+        for i, (t0, x0, y0) in enumerate(samples):
+            for t1, x1, y1 in samples[i + 1:]:
+                dt = t1 - t0
+                if dt < 0.04:
+                    continue
+                vx = (x1 - x0) / dt
+                vy = (y1 - y0) * self.swipe_y_scale / dt
+                if abs(vx) >= abs(vy):
+                    speed, direction = abs(vx), ("right" if vx > 0 else "left")
+                else:
+                    speed, direction = abs(vy), ("up" if vy > 0 else "down")
+                if speed > best[0]:
+                    best = (speed, direction)
+                break
+        speed, direction = best
+        if direction is None or speed < self.swipe_momentum_min_speed:
+            return
+        distance = min(
+            float(self.swipe_momentum_max_distance),
+            (speed - self.swipe_momentum_min_speed) * self.swipe_momentum_seconds,
+        )
+        steps = min(self.swipe_max_steps, int(distance // self.swipe_step_distance))
+        if steps <= 0:
+            return
+        first = (
+            "continue-" + direction
+            if direction == self.gesture_direction
+            else direction
+        )
+        actions = [first] + ["continue-" + direction] * (steps - 1)
+        LOG.debug("Coasting %s: %d steps at %.0f units/s", direction, steps, speed)
+        self._start_coast_locked(actions)
+
+    def _start_coast_locked(self, actions: list[str]) -> None:
+        self._cancel_coast_locked()
+        token = object()
+        self.coast_token = token
+        delays = []
+        delay = self.coast_first_delay
+        for _ in actions:
+            delays.append(delay)
+            delay *= self.coast_growth
+
+        def fire(index: int) -> None:
+            with self.lock:
+                if self.coast_token is not token:
+                    return
+                if index + 1 < len(actions):
+                    self.coast_timer = threading.Timer(delays[index + 1], fire, (index + 1,))
+                    self.coast_timer.daemon = True
+                    self.coast_timer.start()
+                else:
+                    self.coast_token = None
+                    self.coast_timer = None
+            self._submit_gesture_actions([actions[index]])
+
+        self.coast_timer = threading.Timer(delays[0], fire, (0,))
+        self.coast_timer.daemon = True
+        self.coast_timer.start()
+
+    def _cancel_coast_locked(self) -> None:
+        self.coast_token = None
+        if self.coast_timer is not None:
+            self.coast_timer.cancel()
+            self.coast_timer = None
+
+    def _submit_gesture_actions(self, actions: list[str]) -> None:
+        if not actions or not self.library_navigation:
+            return
+        submit_batch = getattr(self.screen_clicker, "submit_navigation_actions", None)
+        if submit_batch is not None:
+            submit_batch(actions)
+        else:
+            for action in actions:
+                self.screen_clicker.submit_navigation(action)
 
     def _touch_click_action_locked(
         self, buttons: int, now: float
@@ -2754,6 +2895,14 @@ class ButtonMapper:
         now = time.monotonic()
         touch = self.decode_touch(payload)
         with self.lock:
+            if not self.input_active and touch is None:
+                # While the connection is being set up, the remote reports
+                # the button state it remembered from before it slept (seen:
+                # Menu, while the thumb made a swipe). Real presses arrive
+                # after the input is active. Not even remembered as the
+                # current state, so a real press of that button still counts.
+                LOG.debug("Ignoring button report before input is active: %s", payload.hex(" "))
+                return
             recovered_volume_press = False
             gesture_actions = []
             if touch is not None:
@@ -2772,10 +2921,7 @@ class ButtonMapper:
                     payload.hex(" "),
                 )
             elif buttons == 0:
-                self.gesture_start_x = None
-                self.gesture_start_y = None
-                self.gesture_direction = None
-                self.gesture_steps_sent = 0
+                self._end_gesture_locked()
             elif buttons == self.previous:
                 # ATT notifications have no application-level acknowledgement.
                 # If a volume release is lost, the next identical press would
@@ -2813,19 +2959,14 @@ class ButtonMapper:
                 LOG.debug("Input notification: %s", payload.hex(" "))
                 self.previous = buttons
                 self._update_home_locked(previous, buttons)
+            if newly_pressed:
+                # Any button stops a coasting flick.
+                self._cancel_coast_locked()
             if newly_pressed & (BUTTON_VOLUME_UP | BUTTON_VOLUME_DOWN):
                 self.last_volume_press_time = now
             touch_action = self._touch_click_action_locked(buttons, now)
 
-        if gesture_actions and self.library_navigation:
-            submit_batch = getattr(
-                self.screen_clicker, "submit_navigation_actions", None
-            )
-            if submit_batch is not None:
-                submit_batch(gesture_actions)
-            else:
-                for gesture_action in gesture_actions:
-                    self.screen_clicker.submit_navigation(gesture_action)
+        self._submit_gesture_actions(gesture_actions)
         if touch_action is not None:
             name, command = touch_action
             if command.startswith("navigation:"):
@@ -3002,6 +3143,7 @@ def run(args: argparse.Namespace) -> int:
             client.notification_handler = mapper.notification
             client.battery_handler = battery_monitor.update
             mapper.reset()
+            mapper.mark_connecting()
             try:
                 LOG.info("Connecting to Siri Remote %s", args.mac)
                 client.connect(stop_event)

@@ -86,13 +86,13 @@ class ButtonMapperTests(unittest.TestCase):
             "SIRI_TOUCH_X_SPLIT": "3096",
             "SIRI_TOUCH_DEAD_ZONE": "60",
             "SIRI_TOUCH_MAX_AGE_SECONDS": "1.5",
-            "SIRI_SWIPE_MIN_DISTANCE": "350",
-            "SIRI_SWIPE_STEP_DISTANCE": "450",
+            "SIRI_SWIPE_MIN_DISTANCE": "300",
+            "SIRI_SWIPE_STEP_DISTANCE": "380",
+            "SIRI_SWIPE_Y_SCALE": "1.0",
             "SIRI_SWIPE_MAX_STEPS": "8",
-            "SIRI_SWIPE_MOMENTUM_MIN_SPEED": "4000",
-            "SIRI_SWIPE_MOMENTUM_SECONDS": "0.40",
-            "SIRI_SWIPE_MOMENTUM_MAX_DISTANCE": "2700",
-            "SIRI_SWIPE_MAX_SECONDS": "1.5",
+            "SIRI_SWIPE_MOMENTUM_MIN_SPEED": "5000",
+            "SIRI_SWIPE_MOMENTUM_SECONDS": "0.13",
+            "SIRI_SWIPE_MOMENTUM_MAX_DISTANCE": "1900",
             "SIRI_TOUCH_SEQUENCE_GAP_SECONDS": "0.35",
             "SIRI_RECONNECT_DUPLICATE_GUARD_SECONDS": "2",
             "MOODE_PREVIOUS_CMD": "previous",
@@ -163,106 +163,169 @@ class ButtonMapperTests(unittest.TestCase):
         self.notify(touch_report(3600))
         self.assertEqual(self.worker.actions, [])
 
-    def test_deliberate_short_swipes_remain_one_precise_step(self):
+    def gesture(self, samples, timers=None, apple_music=False):
+        """Feed (time, x, y[, pressure]) touch samples to a navigation mapper."""
+        clicker = FakeClicker()
+        if apple_music:
+            clicker.apple_music = mock.Mock(visible=mock.Mock(return_value=True))
+        fake_timers = [] if timers is None else timers
+
+        class FakeTimer:
+            def __init__(self, delay, function, args=()):
+                self.delay, self.function, self.args = delay, function, args
+                self.cancelled = False
+                self.daemon = False
+
+            def start(self):
+                fake_timers.append(self)
+
+            def cancel(self):
+                self.cancelled = True
+
+        mapper = remote.ButtonMapper(
+            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
+        )
+        times = [sample[0] for sample in samples]
+        # Coasting steps schedule the next step from inside a timer, so the
+        # fake timer stays in place until the test ends.
+        timer_patch = mock.patch.object(remote.threading, "Timer", FakeTimer)
+        timer_patch.start()
+        self.addCleanup(timer_patch.stop)
+        with mock.patch.object(remote.time, "monotonic", side_effect=times):
+            for sample in samples:
+                t, x, y = sample[:3]
+                pressure = sample[3] if len(sample) > 3 else 40
+                mapper.notification(
+                    remote.HANDLE_INPUT_VALUE, touch_report(x, y=y, pressure=pressure),
+                )
+        return mapper, clicker, fake_timers
+
+    @staticmethod
+    def run_timers(timers):
+        while timers:
+            timer = timers.pop(0)
+            if not timer.cancelled:
+                timer.function(*timer.args)
+
+    def test_thumb_travel_sets_the_number_of_steps(self):
+        mapper, clicker, _ = self.gesture([
+            (100.0, 2500, 3500), (100.19, 3000, 3520),
+            (101.0, 3000, 3400), (101.19, 3020, 4300),
+        ])
+        # 500 units right: one step. 900 units up: 300 + 380 = two.
+        self.assertEqual(
+            clicker.navigation_actions,
+            ["right", "up", "continue-up"],
+        )
+        mapper.reset()
+
+    def test_stale_button_while_connecting_is_ignored(self):
         clicker = FakeClicker()
         mapper = remote.ButtonMapper(
             self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
         )
-        with mock.patch.object(
-            remote.time, "monotonic",
-            side_effect=(100.0, 100.19, 101.0, 101.19),
-        ):
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2500, y=3500))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3520))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3400))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3020, y=3900))
-        self.assertEqual(clicker.navigation_actions, ["right", "up"])
+        mapper.mark_connecting()
+        # Seen after waking by a swipe: Menu, reported before input was active.
+        mapper.notification(remote.HANDLE_INPUT_VALUE, bytes((0, remote.BUTTON_MENU)))
+        mapper.mark_connection_ready()
+        mapper.notification(remote.HANDLE_INPUT_VALUE, bytes((0, 0)))
+        self.assertEqual(clicker.clicks, 0)
         self.assertEqual(self.worker.actions, [])
+        # A real Volume+ afterwards still counts.
+        mapper.notification(remote.HANDLE_INPUT_VALUE, bytes((0, remote.BUTTON_VOLUME_UP)))
+        self.assertEqual(len(self.worker.actions), 1)
         mapper.reset()
 
-    def test_fast_short_swipe_accelerates_to_two_steps(self):
-        clicker = FakeClicker()
-        mapper = remote.ButtonMapper(
-            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
-        )
-        with mock.patch.object(
-            remote.time, "monotonic", side_effect=(125.0, 125.1),
-        ):
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2500, y=3500))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3520))
+    def test_vertical_travel_is_scaled(self):
+        with mock.patch.dict(os.environ, {"SIRI_SWIPE_Y_SCALE": "2.0"}):
+            mapper, clicker, _ = self.gesture([
+                (105.0, 3000, 3400), (105.19, 3000, 3900),
+            ])
+        # 500 units up count as 1000: 300 + 380 = two steps.
+        self.assertEqual(clicker.navigation_actions, ["up", "continue-up"])
+        mapper.reset()
+
+    def test_direction_can_change_during_a_swipe(self):
+        mapper, clicker, _ = self.gesture([
+            (110.0, 2500, 3800), (110.2, 3000, 3800), (110.4, 3000, 3300),
+        ])
         self.assertEqual(
             clicker.navigation_actions,
-            ["right", "continue-right"],
+            # After the first step every step is 380 units: 500 down is one.
+            ["right", "down"],
         )
         mapper.reset()
 
-    def test_fast_long_swipe_uses_speed_sensitive_momentum(self):
-        clicker = FakeClicker()
-        mapper = remote.ButtonMapper(
-            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
-        )
-        with mock.patch.object(
-            remote.time, "monotonic", side_effect=(150.0, 150.1),
-        ):
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=5000))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3010, y=4100))
+    def test_slow_swipe_has_no_time_limit(self):
+        samples = [(120.0 + i * 0.3, 2300 + i * 150, 3800) for i in range(11)]
+        mapper, clicker, timers = self.gesture(samples + [(123.3, 3800, 3800, 0)])
+        # 1500 units: the first step at 300, then one per 380.
         self.assertEqual(
             clicker.navigation_actions,
-            ["down"] + ["continue-down"] * 5,
+            ["right"] + ["continue-right"] * 3,
         )
+        self.assertEqual(timers, [])
         mapper.reset()
 
-    def test_long_deliberate_swipe_moves_progressively_to_five_steps(self):
-        clicker = FakeClicker()
-        mapper = remote.ButtonMapper(
-            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
-        )
-        with mock.patch.object(
-            remote.time, "monotonic",
-            side_effect=(200.0, 200.19, 200.29, 200.39, 200.49, 200.59),
-        ):
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=5000))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3020, y=4600))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3010, y=4100))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3600))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2990, y=3100))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2980, y=2500))
+    def test_flick_coasts_on_after_release(self):
+        timers = []
+        mapper, clicker, _ = self.gesture([
+            (130.0, 2600, 3800), (130.02, 2700, 3800), (130.05, 3300, 3800),
+            (130.09, 3700, 3800), (130.12, 3700, 3800, 0),
+        ], timers)
         self.assertEqual(
-            clicker.navigation_actions,
-            ["down"] + ["continue-down"] * 4,
+            clicker.navigation_actions, ["right"] + ["continue-right"] * 2,
         )
-        mapper.reset()
-
-    def test_very_fast_swipe_is_capped_at_eight_steps(self):
-        clicker = FakeClicker()
-        mapper = remote.ButtonMapper(
-            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
-        )
-        with mock.patch.object(
-            remote.time, "monotonic", side_effect=(250.0, 250.08),
-        ):
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=5000))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3010, y=2500))
+        delays = []
+        while timers:
+            timer = timers.pop(0)
+            delays.append(timer.delay)
+            timer.function(*timer.args)
+        # About 14300 units/s: (14300 - 5000) x 0.13 = 1200 units, three steps.
         self.assertEqual(
-            clicker.navigation_actions,
-            ["down"] + ["continue-down"] * 7,
+            clicker.navigation_actions, ["right"] + ["continue-right"] * 5,
         )
+        # Each coasting step comes later than the one before: it slows down.
+        self.assertTrue(all(b > a for a, b in zip(delays, delays[1:])))
         mapper.reset()
 
-    def test_one_second_swipe_is_not_discarded(self):
-        clicker = FakeClicker()
-        mapper = remote.ButtonMapper(
-            self.worker, shutdown_action=lambda: None, screen_clicker=clicker,
-        )
-        with mock.patch.object(
-            remote.time, "monotonic",
-            side_effect=(275.0, 275.34, 275.67, 276.0),
-        ):
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2500, y=3500))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2600, y=3510))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(2750, y=3515))
-            mapper.notification(remote.HANDLE_INPUT_VALUE, touch_report(3000, y=3520))
-        self.assertEqual(clicker.navigation_actions, ["right"])
+    def test_apple_music_swipe_moves_one_row_and_does_not_coast(self):
+        timers = []
+        mapper, clicker, _ = self.gesture([
+            (160.0, 3000, 4300), (160.1, 3000, 3300), (160.15, 3000, 3000),
+            (160.2, 3000, 3000, 0),
+        ], timers, apple_music=True)
+        # 1300 units down would be four rows in moOde; Apple Music gets one.
+        self.assertEqual(clicker.navigation_actions, ["down"])
+        self.assertEqual(timers, [])
+        mapper.reset()
+
+    def test_apple_music_horizontal_swipe_is_unlimited(self):
+        mapper, clicker, _ = self.gesture([
+            (170.0, 2300, 3800), (170.3, 2800, 3800), (170.6, 3400, 3800),
+            (170.9, 3900, 3800),
+        ], apple_music=True)
+        self.assertEqual(clicker.navigation_actions, ["right"] + ["continue-right"] * 3)
+        mapper.reset()
+
+    def test_thumb_that_stops_before_lifting_does_not_coast(self):
+        mapper, clicker, timers = self.gesture([
+            (140.0, 2600, 3800), (140.05, 3300, 3800), (140.2, 3320, 3800),
+            (140.3, 3320, 3800), (140.45, 3320, 3800, 0),
+        ])
+        self.assertEqual(clicker.navigation_actions, ["right", "continue-right"])
+        self.assertEqual(timers, [])
+        mapper.reset()
+
+    def test_new_touch_stops_coasting(self):
+        timers = []
+        mapper, clicker, _ = self.gesture([
+            (150.0, 2600, 3800), (150.05, 3300, 3800), (150.09, 3700, 3800),
+            (150.12, 3700, 3800, 0), (150.2, 3000, 3800),
+        ], timers)
+        before = list(clicker.navigation_actions)
+        self.run_timers(timers)
+        self.assertEqual(clicker.navigation_actions, before)
         mapper.reset()
 
     def test_physical_click_routes_to_selection_when_navigation_is_enabled(self):

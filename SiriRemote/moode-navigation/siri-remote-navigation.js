@@ -44,6 +44,20 @@
             background-color: var(--accentxta) !important;
             scroll-margin-block: 3.25rem 8rem;
         }
+        /* Apple TV-like focus: the focused cover lifts and the previous one
+           settles back, both animated (transform only, cheap on the Pi). */
+        /* Only the transform is animated: an animated shadow repaints the
+           cover in every frame, which the Pi 4 cannot keep up with. */
+        #albumcovers > li, #radio-covers > li, #playlist-covers > li {
+            transition: transform .18s cubic-bezier(.2, .8, .2, 1);
+        }
+        #albumcovers > li.${SELECTED_CLASS},
+        #radio-covers > li.${SELECTED_CLASS},
+        #playlist-covers > li.${SELECTED_CLASS} {
+            transform: scale(1.06);
+            box-shadow: 0 .6rem 1.4rem rgba(0, 0, 0, .45);
+            z-index: 2;
+        }
         :root.siri-remote-navigating #lib-content li.active:not(.${SELECTED_CLASS}),
         :root.siri-remote-navigating .albumslist .active:not(.${SELECTED_CLASS}),
         :root.siri-remote-navigating #radio-covers li.active:not(.${SELECTED_CLASS}),
@@ -538,14 +552,75 @@
         }
     }
 
+    // Glide the list so the selection sits in the middle of the free area
+    // (below the header, above the playbar), like an Apple TV: an ease-out
+    // animation that starts again from where it is when the next step comes.
+    const GLIDE_MS = 240;
+    let glide = null;
+
+    function scroller(element) {
+        for (let node = element.parentElement; node && node !== document.body; node = node.parentElement) {
+            const overflow = window.getComputedStyle(node).overflowY;
+            if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight + 1) {
+                return node;
+            }
+        }
+        return document.scrollingElement || document.documentElement;
+    }
+
+    function glideTo(container, target) {
+        const max = container.scrollHeight - container.clientHeight;
+        target = Math.max(0, Math.min(max, Math.round(target)));
+        if (glide && glide.container === container) {
+            glide.from = container.scrollTop;
+            glide.to = target;
+            glide.start = performance.now();
+            return;
+        }
+        if (glide) window.cancelAnimationFrame(glide.frame);
+        if (Math.abs(container.scrollTop - target) < 2) {
+            glide = null;
+            return;
+        }
+        glide = {container, from: container.scrollTop, to: target, start: performance.now(), frame: 0};
+        const step = function (now) {
+            if (!glide) return;
+            const t = Math.min(1, (now - glide.start) / GLIDE_MS);
+            const eased = 1 - Math.pow(1 - t, 3);
+            glide.container.scrollTop = glide.from + (glide.to - glide.from) * eased;
+            if (t < 1) {
+                glide.frame = window.requestAnimationFrame(step);
+            } else {
+                glide = null;
+            }
+        };
+        glide.frame = window.requestAnimationFrame(step);
+    }
+
     function scrollToSelection() {
         selectionScrollTimer = null;
-        if (selected && selected.isConnected) {
-            selected.scrollIntoView({
-                block: 'center',
-                inline: 'nearest',
-                behavior: 'auto',
-            });
+        if (!selected || !selected.isConnected) return;
+        if (selected.matches(SOURCE_SELECTOR)) {
+            selected.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'auto'});
+            return;
+        }
+        const container = scroller(selected);
+        const rem = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+        const box = container === document.scrollingElement || container === document.documentElement ?
+            {top: 0, bottom: window.innerHeight} : container.getBoundingClientRect();
+        const rect = selected.getBoundingClientRect();
+        // Free area: below moOde's header, above the playbar.
+        const top = box.top + 3.25 * rem;
+        const bottom = box.bottom - 8 * rem;
+        // rect is measured at the current (possibly mid-glide) position.
+        const offset = (rect.top + rect.height / 2) - (top + bottom) / 2;
+        glideTo(container, container.scrollTop + offset);
+    }
+
+    function stopGlide() {
+        if (glide) {
+            window.cancelAnimationFrame(glide.frame);
+            glide = null;
         }
     }
 
@@ -844,6 +919,7 @@
 
     document.addEventListener('pointerdown', function () {
         cancelContinuations();
+        stopGlide();
         if (!isPlayback()) {
             schedulePlaybackReturn();
         }

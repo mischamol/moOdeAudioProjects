@@ -65,16 +65,19 @@ if grep -q '^SIRI_LIBRARY_NAVIGATION=' /etc/default/siri-remote-moode; then
 else
     printf 'SIRI_LIBRARY_NAVIGATION=%s\n' "$navigation" >> /etc/default/siri-remote-moode
 fi
-grep -q '^SIRI_SWIPE_MIN_DISTANCE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MIN_DISTANCE=350' >> /etc/default/siri-remote-moode
-grep -q '^SIRI_SWIPE_STEP_DISTANCE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_STEP_DISTANCE=450' >> /etc/default/siri-remote-moode
+# Swipe settings of the Apple TV-like gesture; old defaults are migrated,
+# values changed by hand are kept.
+sed -i 's/^SIRI_SWIPE_MIN_DISTANCE=350$/SIRI_SWIPE_MIN_DISTANCE=300/; s/^SIRI_SWIPE_STEP_DISTANCE=450$/SIRI_SWIPE_STEP_DISTANCE=380/' /etc/default/siri-remote-moode
+grep -q '^SIRI_SWIPE_MIN_DISTANCE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MIN_DISTANCE=300' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_SWIPE_STEP_DISTANCE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_STEP_DISTANCE=380' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_SWIPE_Y_SCALE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_Y_SCALE=1.0' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_SWIPE_MAX_STEPS=3$/SIRI_SWIPE_MAX_STEPS=8/; s/^SIRI_SWIPE_MAX_STEPS=4$/SIRI_SWIPE_MAX_STEPS=8/' /etc/default/siri-remote-moode
 grep -q '^SIRI_SWIPE_MAX_STEPS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MAX_STEPS=8' >> /etc/default/siri-remote-moode
-sed -i '/^SIRI_SWIPE_FLICK_SECONDS=/d' /etc/default/siri-remote-moode
-grep -q '^SIRI_SWIPE_MOMENTUM_MIN_SPEED=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MOMENTUM_MIN_SPEED=4000' >> /etc/default/siri-remote-moode
-grep -q '^SIRI_SWIPE_MOMENTUM_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MOMENTUM_SECONDS=0.40' >> /etc/default/siri-remote-moode
-grep -q '^SIRI_SWIPE_MOMENTUM_MAX_DISTANCE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MOMENTUM_MAX_DISTANCE=2700' >> /etc/default/siri-remote-moode
-sed -i 's/^SIRI_SWIPE_MAX_SECONDS=0.8$/SIRI_SWIPE_MAX_SECONDS=1.5/' /etc/default/siri-remote-moode
-grep -q '^SIRI_SWIPE_MAX_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MAX_SECONDS=1.5' >> /etc/default/siri-remote-moode
+sed -i '/^SIRI_SWIPE_FLICK_SECONDS=/d; /^SIRI_SWIPE_MAX_SECONDS=/d' /etc/default/siri-remote-moode
+sed -i 's/^SIRI_SWIPE_MOMENTUM_MIN_SPEED=4000$/SIRI_SWIPE_MOMENTUM_MIN_SPEED=5000/; s/^SIRI_SWIPE_MOMENTUM_SECONDS=0.40$/SIRI_SWIPE_MOMENTUM_SECONDS=0.13/; s/^SIRI_SWIPE_MOMENTUM_MAX_DISTANCE=2700$/SIRI_SWIPE_MOMENTUM_MAX_DISTANCE=1900/' /etc/default/siri-remote-moode
+grep -q '^SIRI_SWIPE_MOMENTUM_MIN_SPEED=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MOMENTUM_MIN_SPEED=5000' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_SWIPE_MOMENTUM_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MOMENTUM_SECONDS=0.13' >> /etc/default/siri-remote-moode
+grep -q '^SIRI_SWIPE_MOMENTUM_MAX_DISTANCE=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_SWIPE_MOMENTUM_MAX_DISTANCE=1900' >> /etc/default/siri-remote-moode
 sed -i 's/^SIRI_TOUCH_SEQUENCE_GAP_SECONDS=0.20$/SIRI_TOUCH_SEQUENCE_GAP_SECONDS=0.35/' /etc/default/siri-remote-moode
 grep -q '^SIRI_TOUCH_SEQUENCE_GAP_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_TOUCH_SEQUENCE_GAP_SECONDS=0.35' >> /etc/default/siri-remote-moode
 grep -q '^SIRI_VOLUME_REPEAT_RECOVERY_SECONDS=' /etc/default/siri-remote-moode || printf '%s\n' 'SIRI_VOLUME_REPEAT_RECOVERY_SECONDS=0.75' >> /etc/default/siri-remote-moode
